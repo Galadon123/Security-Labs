@@ -134,25 +134,33 @@ Stored XSS (also known as Persistent XSS) occurs when a malicious script is inje
 ### **Exploring the Application**
 This web app is designed to demonstrate Stored XSS attacks. It allows users to input data, which is permanently stored in the application's database without proper sanitization, making it vulnerable to malicious script injection that affects all users who visit the site.
 
-When a user adds a comment, it's permanently stored in the database. For example, if a user enters a simple greeting in the comment field, it will be displayed to all visitors who load the page.
+When a user adds a comment, it is permanently stored in the database. For example, if a user enters a simple greeting in the comment field, it will be displayed to all visitors who load the page.
 
-Try submitting "Poridhi", "Hello" respectively and click the Submit Button.
+Try submitting Poridhi as the name and <>"Hello" as the comment, then click the Submit button.
 
 ![](./assets/insertc1.png)
 
-See the new comment is apperead in the page and everyone can see it visiting this page. 
+Notice that the new comment appears on the page, and everyone who visits the page can see it. 
 
 ![](./assets/readc1.png)
 
+Now, inspect the HTML source code to see how the previous inputs were stored without any sanitization. The inputs were directly inserted between tags, making them exploitable in different ways.
+
+![](./assets/inspect1.png)
+
 ### **Exploiting the Application**
 
-Try submitting "Hacker" as name and suggested payload below then click the Submit Button.
+Try submitting "Hacker" as the name along with the suggested payload below, then click the Submit button.
 
 ![](./assets/insertc2.png)
 
-As soon as the the comments is fetched from the server, the comment which has malicious script gets executed and alert message is shown.
+As soon as the comment is fetched from the server, the malicious script within the comment gets executed, displaying an alert message.
 
 ![](./assets/readc2.png)
+
+Now, inspect the HTML source code and observe how the submitted comment is behaving like a script.
+
+![](./assets/inspect2.png)
 
 As this website is vulnerable you can submit more malicious scripts.
 Try submitting this as comment and observe what happened.
