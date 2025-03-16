@@ -1,240 +1,289 @@
-# Reflected XSS via HTML-encoded attribute injection
+# **Bypassing HTML Encoding**
 
-Cross-site Scripting (XSS) is a prevalent web security vulnerability that allows attackers to inject malicious scripts into web applications. One such variant is **Reflected XSS**, where an attacker injects a payload that gets immediately reflected in the response. Specifically, **Reflected XSS into attributes with angle brackets HTML-encoded** is a technique where user input is embedded into an HTML attribute but is improperly encoded, making it susceptible to exploitation.
+In Reflected XSS, a user's input is included in the response of a web application without proper sanitization. When an application is vulnerable to Reflected XSS, an attacker can exploit the application by injecting a malicious script in the input field. In this lab, we will simulate **Reflected XSS** in a vulnerable web application and systematically **test all possible HTML tags** using **Burp Suite** to find an effective payload. By doing so, we will learn how attackers exploit such vulnerabilities and understand the importance of strong security measures.
 
-## Objective
+## **Objective**  
 
-This documentation aims to:
+The goal of this hands-on lab is to:  
 
-- Explain **Reflected XSS** within HTML attributes.
-- Discuss how **angle brackets (<> characters) are HTML-encoded but injection is still possible**.
-- Demonstrate **bypassing mechanisms** to exploit this vulnerability.
-- Explore **practical applications** of this attack.
-- Provide insights on **how to mitigate this vulnerability**.
+- Understand Reflected XSS and how it works in a real-world scenario.  
+- Explore how HTML encoding can be bypassed despite partial security measures.  
+- Use Burp Suite to automate testing for different HTML tags to identify working exploits.  
+- Analyze application responses to determine which tags and attributes are vulnerable.  
+- Gain insight into the mitigation strategies that can effectively prevent these types of attacks. 
 
-## What is Reflected XSS?
+## **Prerequisites**
 
-Reflected XSS is a type of XSS attack where the malicious script is reflected off the web application back to the victim's browser. This type of XSS is common in web applications that handle user input, such as name fields, search fields, comment sections, and login forms.
+- Docker
+- `Burp Suite` installed in your system
+- Basic knowledge of `HTML`, `CSS`, and `JavaScript`
+
+## **Reflected XSS** 
+
+Reflected XSS is a type of XSS attack where the malicious script is reflected off the web application back to the victim's browser. This type of XSS is common in web applications that handle user input, such as name fields, comment sections, and login forms.
 
 ![](./images/2.svg)
 
 An attacker crafts a malicious URL containing a script and tricks a user into clicking it. The vulnerable website reflects the script in its response without proper sanitization, causing the user's browser to execute it, leading to data theft or session hijacking.
 
-## HTML Attribute Injection
+## **Burp Suite**
 
-Reflected XSS in attributes occurs when **unsanitized user input is placed inside an HTML attribute**, such as:
+Burp Suite is a leading tool for web application security testing. It offers a comprehensive suite of tools for:
 
-```html
-<input value="USER_INPUT">
-```
+- Intercepting and analyzing HTTP/HTTPS traffic.
+- Detecting and exploiting web application vulnerabilities.
+- Automating security testing workflows.
 
-### Why is This Dangerous?
+## **Why use Burp Suite to Bypass HTML Encoding?**
 
-When a web application takes user input and directly places it inside an HTML attribute **without proper encoding or validation**, an attacker can manipulate the input to inject malicious scripts.
+We have so many tags in HTML like `<script>`, `<img>`, `<svg>`, `<a>`, etc. and each of them has so many attributes. When an developer builds a web application, he/she may not encode all the possible HTML tags and attributes. Attackers use Burp Suite to brute-force the HTML tags and find a working exploit.
 
-Even if **angle brackets (`< >`) are encoded** (converted to `&lt;` and `&gt;` to prevent direct HTML injection), other special characters such as **quotes (`"` or `'`) and backticks (` ` ` )** might still be allowed. Attackers can use these characters to break out of the attribute and insert harmful JavaScript.
 
-### How It Works
-
-Consider this vulnerable input field:
+For example, a developer forget the encode the `svg` tag, so an attacker can use the `svg` tag to execute the JavaScript code.
 
 ```html
-<input value="John Doe">
+<svg onload="alert('XSS')"></svg>
 ```
 
-If an attacker enters:
+But in `HTML` we have more than 100 tags, for attackers it is very difficult to test all the tags and attributes. So, attackers use Burp Suite to brute-force the HTML tags and find a working exploit.
 
-```
-onfocus=alert(1) autofocus=
-```
+## **How Burp Suite Bypass HTML Encoding**  
 
-The rendered HTML will be:
+Burp Suite is an advanced web security tool that can help identify vulnerabilities in web applications, including **bypassing HTML encoding protections**. One of its core features, **Intruder**, plays a crucial role in testing how a web server processes encoded HTML inputs and whether they can be exploited. 
 
-```html
-<input value="onfocus=alert(1) autofocus=">
-```
+![](./images/logo1.svg)
 
-Now, whenever a user clicks inside the input field, the JavaScript `alert(1)` executes.
+### **Capturing and Modifying Requests**  
+Burp Suite’s **Proxy** intercepts the request sent from the browser to the server, allowing an attacker to examine the structure of the request. If the request contains a user input field (such as a form or search bar), Burp Suite extracts and isolates the specific parameter where HTML encoding protections might be applied.  
 
-## How Attackers Exploit This Vulnerability
+### **Injecting Payloads via Intruder**  
+Burp Suite’s **Intruder** automates the process of sending multiple variations of a payload to determine how the server handles different encoding schemes. It does this by:  
 
-![](./images/htmlencodedreflectedXSS.svg)
+1. **Identifying Input Fields:** Intruder pinpoints parameters where user input is processed and attempts to manipulate them.  
+2. **Replacing User Input with Payloads:** It substitutes normal user input with various HTML-encoded payloads such as:  
+   - `<script>alert('XSS')</script>` (raw HTML)  
+   - `&lt;script&gt;alert('XSS')&lt;/script&gt;` (HTML encoded)  
+   - `&#x3C;script&#x3E;alert('XSS')&#x3C;/script&#x3E;` (Hex encoding)  
+   - `%3Cscript%3Ealert('XSS')%3C/script%3E` (URL encoding)  
 
-Attackers use several techniques to inject malicious scripts, including:
+Intruder **systematically injects** these payloads into the selected parameter and sends them to the server to analyze the response.  
 
-### 1. Breaking Out of Attributes
+### **Analyzing Server Responses**  
 
-- Injecting quotes (`"` or `'`) can **break out of the attribute** and execute JavaScript.
-- Example payload:
-  ```html
-  "><script>alert(1)</script>
-  ```
-- This breaks the `value` attribute and inserts a new `<script>` tag, leading to execution.
+![](./images/logo2.svg)
 
-### 2. Using Event Handlers
+Burp Suite **monitors the behavior** of the server when different encoded versions of the payload are received. It does this by:  
 
-- HTML elements support various **JavaScript event handlers** such as `onmouseover`, `onfocus`, `onerror`, etc.
-- Example payload:
-  ```html
-  " onmouseover="alert(1)"
-  ```
-- When the user hovers over the input field, `alert(1)` is executed.
+- **Comparing HTTP Response Codes:** If different encoding formats return different HTTP status codes (e.g., `200 OK` for successful execution, `403 Forbidden` for blocked input), it indicates how the server processes the input.  
+- **Checking Content Reflection:** If the server returns the payload **without encoding it again**, it suggests a potential vulnerability where the input is rendered as raw HTML, leading to execution in the browser.  
+- **Detecting Filtering Mechanisms:** If some payloads are blocked while others pass through, Intruder helps identify which encoding methods successfully bypass input sanitization.  
 
-### 3. Exploiting Backticks in JavaScript Context
+### **Finding Bypasses through Encoding Variations**  
+Burp Suite **automates** the process of testing different encoding techniques. If one encoding method is blocked, it tries alternative formats until it finds a **working bypass**. This includes:  
 
-- Some JavaScript templating engines allow input inside **backticks (` ` ` )**.
-- Example payload:
-  ```html
-  <input value=`onfocus=alert(1)` autofocus>
-  ```
-- This can lead to unintended script execution when the input field is focused.
+1. **Double Encoding**: `%253Cscript%253Ealert('XSS')%253C/script%253E`  
+2. **Mixed Encoding**: Using combinations of **hex, URL, and HTML encoding** to trick the filtering mechanism.  
+3. **Character Injection**: Injecting broken sequences or null bytes (`%00`) to disrupt encoding routines.  
 
-## How the Bypass Mechanism Works
+If a certain encoded version gets **executed instead of displayed as text**, Burp Suite flags it as a potential exploit.  
 
-1. **HTML Attribute Context Misuse**: Attackers **inject closing characters** (`"`, `'`, `` ` ``) to break out of attributes and execute JavaScript.
-2. **Event Listeners**: JavaScript executes when events like `onclick`, `onmouseover`, or `onfocus` trigger.
-3. **Mismatched Encoding**: If `< >` are encoded but `"` or `'` are not, attackers can **break out of attributes**.
-4. **Polyglot Payloads**: Attackers mix different techniques (e.g., encoding tricks) to evade filters and execute JavaScript.
+### **Extracting the Exploit**  
+Once Burp Suite identifies a bypass, it refines the payload to **maximize impact** while avoiding detection. If an encoded version executes JavaScript or injects unwanted HTML elements, it confirms that the encoding protections are weak. The final exploit is then extracted and used for further testing or reporting the vulnerability.
 
-## Practical Application
 
-Now we will vulnerable application to exploit the Reflected XSS via HTML-encoded attribute injection. We will run the application in docker container and then we will exploit the vulnerability.
 
-### **Step 1: Pull the Docker Image**
+## **Hands-On Lab**  
+
+Now we will simulate a real-world attack scenario and demonstrate how applications with partial encoding can still be exploited.
+
+### **Step 1: Pull the docker image**  
 
 ```bash
-docker pull fazlulkarim105925/reflectedxssbracketencoded
+docker pull fazlulkarim105925/reflectedxss-with-most-tags-blocked
 ```
 
-### **Step 2: Run the Docker Container**
+### **Step 2: Run the docker container**  
 
 ```bash
-docker run -d -p 8000:8000 fazlulkarim105925/reflectedxssbracketencoded
+docker run -d -p 8000:8000 fazlulkarim105925/reflectedxss-with-most-tags-blocked
 ```
 
-### **Step 3: Create a Load Balancer in Poridhi's Cloud**
+### **Step 3: Create Load Balancer in Poridhi's Cloud**
 
-Find the `eth0` IP address with `ifconfig` command.
+Find the `eth0` IP by using the following command:
+
+```bash
+ifconfig
+```
+
+![](./images/9.png)
+
+Now create a load balancer in Poridhi's Cloud with the `eth0` IP and the port `8000`.
+
+![](./images/10.png)
+
+Now you can access the application by using the load balancer URL from any browser.
+
+![](./images/1.png)
+
+### **Step 4: Exploit the application**
+
+In the `name` field, try to inter you name (e.g., `Poridhi`) and see how it reflected in the response.
+
+![](./images/2.png)
+
+If we open the `DevTools` of the browser, we can see that the application rendered the `name` field a Greeter message. It takes the `name` parameter and renders it as a Greeter message.
+
+![](./images/25.png)
+
+It also take the `name` parameter and render it in the `URL` as a parameter.
 
 ![](./images/3.png)
 
-Create a Load Balancer with the `eth0 IP` address and the port `8000`
+Now try to inter the `name` parameter as a `script` tag. for example:
+
+```html
+url/?name=<script>alert(1)</script>
+```
 
 ![](./images/4.png)
 
-### **Step 4: Access the Web Application**
+We can see that the application is blocked the `script` tag.
 
-Access the web application with the the provided `URL` by `loadbalancer`
+Now try with simple `<div>` tag.
 
-![](./images/bei1.png)
-
-### **Step 5: Exploit the Vulnerability**
-
-Now we will exploit the vulnerability by entering the malicious payload in the name field.
-
-First try with your name (e.g. `Poridhi`). If you click on submit button, you will see a greeting message.
-
-Below the Greeting message, you will see `Response Viwer` Section. Here you can see the `Raw HTML` that was inserted and in `Encoded HTML` you can see the HTML that was encoded.
-For example, if you enter `Poridhi` in the name field, you will see the following response:
-
-**For `Raw HTML`:**
-```bash
-<div data-name="Poridhi">
-    <p>Hello, Poridhi! Welcome to our demo.</p>
-</div>
+```html
+url/?name=<div>test</div>
 ```
 
-![](./images/bei2.png)
+![](./images/5.png)
 
-**For `Encoded HTML`:**
-```bash
-<div data-name="Poridhi">
-    <p>Hello, Poridhi! Welcome to our demo.</p>
-</div>
-```
+We can see that the application blocked the `<div>` tag also.
 
-![](./images/bei3.png)
+It suggested that the application blocked most of the HTML tags. But we need to find a `tag` which is not blocked by the application. We need to brute-force the HTML tags and find a working exploit. So we will use Burp Suite to brute-force the HTML tags and find a working exploit.
 
-As no `<` or `>` are characters are used in the payload, so the payload is not encoded.
+### **Step 5: Configure Burp Suite**
 
-Now try with the malicious payload. For example, 
-```bash
-<script>alert(1)</script>
-```
+If Burp Suite is not installed in your system, you can download it from [here](https://portswigger.net/burp/communitydownload).
 
-**You will see the following response:**
+![](./images/6.png)
 
-**For `Raw HTML`:**
+Download and installed Burp Suite.
 
-![](./images/bei4.png)
+Open `Burp Suite` and open a temporary project.
 
-**For `Encoded HTML`:**
+Navigate to `Proxy` tab in `Burp Suite`.
 
-![](./images/bei5.png)
+![](./images/7.png)
 
-As `<` and `>` are used in the payload, so the payload is encoded.
+Make sure that the `Intercept is on` option is enabled. And launch the `Browser`.
 
-**But `No alert` is shown!! Why?**
+![](./images/8.png)
 
-The reason is that the payload is encoded and the encoded payload is not executed. Browser will discard this as it is not a valid HTML tag.
-
-**So how to exploit this vulnerability?**
-
-If we use the payload with `'` or `"`:
+A `Chromium` browser will be opened. Paste the `Load Balancer` URL in the address bar and edit the `name` parameter.
 
 ```bash
-"Poridhi'
+<loadbalancer-url>/?name=<a>
 ```
 
-You will see the following encoded response
+![](./images/12.png)
 
-![](./images/bei7.png)
+As `Burp Suite` `Intercept` is enabled, it will intercept the request and we can see the request in `Burp Suite` `Proxy` tab.
 
-We can see that `'` and `"` are not encoded. So we can use this to exploit the vulnerability.
+![](./images/13.png)
 
-Now try with this payload:
+Now we need to intercept the request and send it to `Intruder`. To do this, we need to right click on the request and select `Send to Intruder`.
+
+![](./images/14.png)
+
+Now we need to configure the `Intruder` tab in `Burp Suite`. Navigate to `Intruder` tab. We will see the `Target` `url` and intercepted request.
+
+![](./images/15.png)
+
+In the first line, we have the `Target` `url` and intercepted request.
 
 ```bash
-" onmouseover="alert('hover test')
+GET /?name=%3Ca%3E HTTP/2
 ```
-![](./images/bei6.png)
+`%3C` and `%3E` are the encoded `<` and `>` characters. Between these characters, we have the `name` parameter (e.g., `<a>`).
 
-In this payload, `"` are used to break out of the attribute and `onmouseover` is used to execute the `alert('hover test')` when,
+Now select the `name` parameter (e.g., `a` only) and right click and select `Add payload position`.
 
-![](./images/bei8.png)
+![](./images/17.png)
 
-you hovers over the `Greeting area` field.
+`$` symbol is used to inject the payload. After adding the payload position, we will see the following.
+```bash
+GET /?name=%3C$a$%3E HTTP/2
+```
 
-We can also try out this payload in the `name` field to exploit the vulnerability.
+![](./images/18.png)
+
+Now we need the list of all the HTML tags. Postswigger has a cheat sheet for the HTML tags. We can use it to get the list of all the HTML tags. To get the cheat sheet, follow the `url` below. Copy all the `HTML` tags from the website.
 
 ```bash
-" onclick="alert('clicked')
+https://portswigger.net/web-security/cross-site-scripting/cheat-sheet
 ```
+
+![](./images/11.png)
+
+Now paste the list of `HTML` tags in the `Intruder` `Payloads` tab.
+
+![](./images/20.png)
+
+
+Now we are all set to start the attack. Click on the `Start attack` button on the top right corner. A new `window` will be opened. Here we can see the `payload` that was injected in the `name` parameter and corresponding `response`  and other details.
+
+To find the only `working` payload, we need to find the payload which is not blocked by the application. We can do this by checking the `status code` of the response. If the status code is `200`, then the payload is working. To sort the payloads by the `status code`, we need to click on the `status code` column. 
+
+![](./images/21.png)
+
+We have successfully found the `working` `HTML` tag. Now we can use this tag to exploit the application.
+
+## **Step 6: Exploit the application**
+
+Now we need to exploit the application. We will use the `working` `HTML` tag to exploit the application.
+
+From `Burp Suite` `Intruder` tab, we have found the following `working` `HTML` tag.
 
 ```bash
-" onfocus="alert('focused')
+<details>
+<input>
+<marquee>
 ```
 
-## Prevention Techniques
+We need to generate some payloads with this tags to exploit the application.
+
+If you use the following payload in the `name` parameter, you will see that the tag is working, `Latest Community Posts` section is moving right to left.
+
+```bash
+name=<marquee>
+```
+
+![](./images/22.png)
+
+We can also try out this payload in the `name` parameter. It will open an `alert` box with a message `1`.
+
+```bash
+name=<details ontoggle=alert(1) open>
+```
+
+Congratulations! You have successfully exploited the application. Find the `vulnerable` `endpoint` of the application and exploit it with the `working` `HTML` tag.
 
 
-To mitigate Reflected XSS via HTML-encoded attribute injection, we can use the following techniques:    
+## **How to prevent XSS Attacks?**
 
-- Sanitize All User Input Properly (e.g. Encode `"` and `'` in user input.)
-- Use Content Security Policy (CSP) to prevent inline JavaScript execution.
-- Avoid Inline JavaScript.
-- Validate and sanitize all attributes. 
-- Implement Input Validation.
-- Use a Web Application Firewall (WAF) to block malicious requests.
+To prevent XSS attacks, web developers should:    
+- Try to encode all the `HTML` tags and attributes. use tools like `Burp Suite` to find the `vulnerable` `endpoints` and `HTML` tags and improve the security of the application.
+- Implement **proper encoding** for **all** user input.
+- Use **secure JavaScript APIs** like `textContent` instead of `innerHTML`.  
+- Enforce **strict Content Security Policies (CSPs)** to restrict script execution.
+
+## **Conclusion**  
+
+In this lab, we have learned how to exploit the application using `Burp Suite`. We have also learned how to prevent XSS attacks. We have used the `Burp Suite` to find the `vulnerable` `endpoints` and `HTML` tags and improve the security of the application.
 
 
-## Conclusion
 
 
-Reflected XSS within HTML attributes is a dangerous vulnerability, especially when **only partial encoding is applied**. Attackers can bypass filters using **quotes, event handlers, and backticks**. To prevent such vulnerabilities:
-
-- **Sanitize all user input properly** (encode `"` and `'`).
-- **Use Content Security Policy (CSP)** to prevent script execution.
-- **Avoid inline JavaScript** and prefer strict attribute handling.
 
 
