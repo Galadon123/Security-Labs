@@ -79,13 +79,13 @@ To demostrate that on `Poridhi's` Platform, we will deploy a application in `Doc
 ### **Step 1: Pull the Docker Image**
 
 ```bash
-docker pull fazlulkarim105925/reflectedxss:v1.1
+docker pull fazlulkarim105925/reflectedxss:v1.2
 ```
 
 ### **Step 2: Deploy the Application**
 
 ```bash
-docker run -p 8000:8000 fazlulkarim105925/reflectedxss:v1.1
+docker run -p 8000:8000 fazlulkarim105925/reflectedxss:v1.2
 ```
 
 ### **Step 3: Expose the Application**
@@ -124,164 +124,68 @@ They stated with injecting direct javascipt into the search field. Like this:
 ```
 ![](./images/5.png)
 
-From the output we can see that the payload is not executed. The payload is rejected by the application. Which confirms that the application handling `script` tag properly.
+From the output we can see that the payload is not executed. The payload is rejected by the application. Which confirms that the application handling `script` tag properly. Application is treating is like plain text not as a script.
 
+Now if we try a payload with double quotes:
 
-Now try payload without angle brackets
+```javascript
+" onmouseover="alert(1)
+```
+![](./images/7.png)
+
+No alert is popped up. This confirms that the application is handling double quotes properly.
+
+Now we will try a payload with single quotes:
+
+```javascript
+'; alert(1); //
+```
+![](./images/8.png)
+
+This time also no alert is popped up. This confirms that the application is single quotes.
+
+But we can try to escape the single quotes with a backslash:
 
 ```javascript
 \'; alert(1); //
 ```
-
 ![](./images/6.png)
 
-From the output we can see that the payload is executed. In this Payload
+<p style="color: red;">This time alert is popped up. </p>
 
-- 1. The ' (single quote) closes the existing string in
+**Why this payload is working?**
+
+The payload `\'; alert(1); //` works because:
+
+1. The application escapes single quotes with a backslash (`'` becomes `\'`)
+2. When you add your own backslash first (`\'`), it becomes `\\'` in the code
+3. In JavaScript, `\\` is interpreted as a literal backslash character
+4. This means your single quote now functions as a proper string terminator
+5. The resulting code becomes: `'\\'; alert(1); //';`
+6. This executes as:
+   - `'\\'` (a string containing a backslash)
+   - `;` (end of statement)
+   - `alert(1);` (your injected code runs)
+   - `//` (comments out the rest)
+
+Essentially, we're "escaping the escape" to break out of the string context and execute arbitrary JavaScript.
 
 
-
-
-
-
-
-1. Uses backslash escaping to break out of the JavaScript string
-2. Injects arbitrary JavaScript code
-3. Uses comment syntax to maintain valid JavaScript
-
-A classic payload for this vulnerability is:
+As we confirms that the application is vulnerable to handling single quotes, we can try more payloads to exploit the vulnerability.
 
 ```javascript
-\'; alert(document.domain); //
+\'; alert(document.cookie); //
 ```
+In this payload we are alerting the cookie of the application. Hackers can steal this cookie and send it to their server. Which may cause a session hijacking attack.
 
-### Exploitation Analysis
+![](./images/9.png)
 
-When this payload is processed by the vulnerable application:
+## How to prevent this vulnerability?
 
-1. The application escapes the single quote: `\\\'`
-2. In JavaScript, `\\\'` is interpreted as:
-   - `\\` → a literal backslash character
-   - `\'` → a literal single quote
-3. This effectively terminates the string
-4. The subsequent code `; alert(document.domain);` executes as JavaScript
-5. The `//` comments out the remainder of the line to prevent syntax errors
+To prevent this vulnerability, we can use the following techniques:
 
-### Common Misconceptions and Failed Protections
-
-1. **Escaping single quotes is insufficient**: Merely replacing `'` with `\'` doesn't prevent XSS when backslashes themselves aren't properly handled.
-
-2. **HTML encoding doesn't protect JavaScript contexts**: Even if `<` becomes `&lt;` in HTML, when inserted into JavaScript, it's interpreted in the JavaScript context, not the HTML context.
-
-3. **JavaScript string context requires specialized encoding**: Each context (HTML, JavaScript, CSS, URL) requires its own encoding strategy.
-
+1. Use `HTML` encoding for angle brackets and double quotes.
+2. To prevent single quotes escaping, we can use `HTML` encoding for single quotes. (e.g. `'` -> `&#39;`). So attacker can't use single quotes to break out of the string context.
 
 ## Conclusion
-In this lab we have seen a specific type of `XSS` vulnerability: **Reflected XSS into a JavaScript string with angle brackets and double quotes HTML-encoded and single quotes escaped**.
-
-
-
-<!-- ### Proof of Concept Exploit
-
-The following search term successfully exploits the vulnerability:
-
-```
-\'; alert(1); //
-```
-
-When this payload is entered in the search field and processed:
-
-1. The application applies single quote escaping: `\\\'`
-2. This allows breaking out of the JavaScript string context
-3. The `alert(1)` code executes
-4. The comment `//` ensures valid JavaScript syntax
-
-## Impact
-
-Successful exploitation of this vulnerability could allow attackers to:
-
-1. Execute arbitrary JavaScript in the context of the victim's browser
-2. Access sensitive user information (cookies, session tokens)
-3. Perform actions on behalf of the victim user
-4. Redirect users to phishing sites
-5. Deface the website content
-
-## Real-World Examples
-
-This vulnerability has been found in many applications:
-
-1. Search functionality in e-commerce platforms
-2. Analytics dashboards that display user-provided parameters
-3. Content management systems that render user inputs in JavaScript contexts
-4. Reporting tools that generate dynamic JavaScript based on user queries
-
-## Proper Remediation Strategies
-
-### 1. Context-Appropriate Encoding
-
-Use a proper JavaScript string encoder that handles all special characters:
-
-```javascript
-function encodeJsString(input) {
-  return input
-    .replace(/\\/g, "\\\\") // Escape backslashes first
-    .replace(/'/g, "\\'") // Escape single quotes
-    .replace(/"/g, '\\"') // Escape double quotes
-    .replace(/\n/g, "\\n") // Escape newlines
-    .replace(/\r/g, "\\r") // Escape carriage returns
-    .replace(/\t/g, "\\t") // Escape tabs
-    .replace(/\f/g, "\\f") // Escape form feeds
-    .replace(/\b/g, "\\b") // Escape backspace
-    .replace(/\v/g, "\\v"); // Escape vertical tab
-}
-```
-
-### 2. Use JSON.stringify() for JavaScript String Encoding
-
-Modern JavaScript provides a built-in way to safely encode strings:
-
-```javascript
-const safeValue = JSON.stringify(userInput);
-// then use without the surrounding quotes:
-const js = `var x = ${safeValue};`; // x will be properly string-encoded
-```
-
-### 3. Avoid Direct DOM Construction with User Input
-
-Instead of constructing HTML with user input, prefer safer DOM manipulation:
-
-```javascript
-const textNode = document.createTextNode(userInput);
-resultElement.appendChild(textNode);
-```
-
-### 4. Use Content Security Policy (CSP)
-
-Implement a strict CSP to mitigate the impact of XSS:
-
-```
-Content-Security-Policy: default-src 'self'; script-src 'self'; object-src 'none'
-```
-
-### 5. Use Modern Frameworks
-
-Modern JavaScript frameworks like React, Vue, and Angular automatically escape variables in templates, reducing the risk of XSS.
-
-## Testing for This Vulnerability
-
-To test for this vulnerability:
-
-1. Identify inputs that are reflected in JavaScript string contexts
-2. Try payloads that attempt to break out of the string:
-   - `\'; alert(1); //`
-   - `\\'; alert(1); //`
-   - `'; alert(1); //`
-3. Check if JavaScript executes without being treated as string content
-
-## Conclusion
-
-Reflected XSS in JavaScript string contexts remains common despite being well-documented. The key insight is that different contexts (HTML, JavaScript, CSS, URL) require different encoding strategies. Simply escaping quotes is insufficient when the input is placed inside a JavaScript string context.
-
-Application developers must implement context-sensitive output encoding and follow defense-in-depth principles to effectively protect against this class of vulnerabilities.
-
-## References -->
+In this lab we have seen a specific type of `XSS` vulnerability: **Reflected XSS into a JavaScript string with angle brackets and double quotes HTML-encoded and single quotes escaped**. Here we have seen that escaping single quotes with a backslash is not enough to prevent this vulnerability. We have also seen that we can exploit the vulnerability by injecting a specially crafted payload.
