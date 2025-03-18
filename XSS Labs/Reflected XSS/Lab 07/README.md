@@ -120,6 +120,8 @@ They stated with injecting direct javascipt into the search field. Like this:
 
 In this payload, we are injecting a javascript alert box to the page. From the output we can see that the payload is reflected in the page and the alert box is shown which means the we have successfully exploited the vulnerability.
 
+As javascript is been executed, attacker may able to execute more dangerous payloads like stealing cookies, redirecting to malicious websites, etc.
+
 ## **Impact of Reflected XSS in Canonical Tags**
 
 If an attacker exploits an XSS vulnerability in a canonical tag, the consequences can be severe:

@@ -9,7 +9,13 @@ In this vulnerability, user input is:
 3. "Protected" by escaping single quotes with backslashes
 4. HTML entities are used for angle brackets and double quotes when displayed in HTML context
 
-We will see how to exploit this vulnerability and how to prevent it.
+## Objective
+
+In this lab, we will learn:
+
+- How to exploit the JavaScript string context vulnerability
+- We will see a practical example of how to exploit the vulnerability
+- How to prevent the vulnerability
 
 ## What is Reflected XSS?
 
