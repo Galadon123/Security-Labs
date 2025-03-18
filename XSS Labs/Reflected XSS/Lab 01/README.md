@@ -1,4 +1,4 @@
-# **Cross-Site Scripting (XSS)**
+# **Introduction to Reflected XSS**
 
 Cross-Site Scripting (XSS) is a critical security vulnerability in web applications that allows attackers to inject and execute malicious scripts in a user’s browser. These scripts can compromise sensitive data, hijack user sessions, deface websites, or perform unauthorized actions. We will also perform a Reflected XSS attack on an application to understand how it works.
 

