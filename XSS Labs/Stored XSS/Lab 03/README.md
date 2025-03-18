@@ -45,7 +45,7 @@ This allows an attacker to inject HTML tags with embedded JavaScript that execut
 
    Find the `eth0` IP address with `ifconfig` command, then create a Load Balancer with that IP address and port `5002`.
 
-   ![Load Balancer Setup](assets/loadb.png)
+   ![](assets/loadb.png)
    
 4. **Access the Web Application**
 
@@ -57,7 +57,7 @@ This allows an attacker to inject HTML tags with embedded JavaScript that execut
 
 This web application allows users to post messages by entering a Username and Message. 
 
-![Application Interface](./assets/input.png)
+![](./assets/input.png)
 
 Messages are stored in the database and then loaded via an API call, making it vulnerable to DOM-based XSS if proper sanitization isn't implemented on the client side.
 
