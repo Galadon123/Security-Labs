@@ -23,7 +23,7 @@ The attacker identifies a parameter or URL that references an object, such as a 
 
 - Example parameter in URL:  
   ```
-  https://example.com/messages/123
+  https://vulnerable.site/download?file=normal.pdf
   ```
   Where `123` is the identifier for a message.
 
@@ -32,7 +32,7 @@ The attacker modifies the reference to point to a different object that they sho
 
 - Example manipulated URL:  
   ```
-  https://example.com/messages/124
+  https://vulnerable.site/download?file=confidential.pdf
   ```
 
 ### **3. Access**  
@@ -40,17 +40,45 @@ If the application does not properly verify that the user has the right to acces
 
 ## **Types of IDOR Vulnerabilities**
 
-![IDOR Types]
-*(Suggested image: A flowchart or table showing different types of IDOR vulnerabilities)*
+![IDOR Types](assets/types.drawio.svg)
 
-### **1. Direct Reference to Private Resources**  
-The application directly exposes sensitive resources through identifiers in URLs, form fields, or API endpoints without proper authorization checks.
+### 1. Path Traversal
+This occurs when an attacker manipulates a file path reference to access unauthorized files or directories on a server.
 
-### **2. Predictable Resource Location**  
-Resources are stored or accessed using predictable patterns that allow attackers to guess valid identifiers.
+- **Example**:  
+  An application allows users to download their profile picture via a URL:
+  ```
+  https://example.com/download?file=profile123.jpg
+  ```
+  An attacker modifies it to:
+  ```
+  https://example.com/download?file=../../etc/passwd
+  ```
+If the server doesn’t validate the input, it may return sensitive system files (e.g., `/etc/passwd` on Linux).
 
-### **3. Insecure Access Control for Functions**  
-The application allows access to sensitive functions without verifying the user's permissions to perform those actions.
+---
+
+## 2. URL Tampering
+This involves modifying URL parameters to access data or resources belonging to other users or unauthorized areas.
+
+- **Example**:  
+A website lets users view their order details with a URL:  
+```
+https://example.com/order?order_id=12345
+```
+An attacker changes it to:
+```
+https://example.com/order?order_id=10101
+```
+If access controls are weak, the attacker can view another user’s order details.
+
+---
+
+## 3. Modifying Header
+This occurs when an attacker alters HTTP headers (e.g., cookies or tokens) to bypass access controls and reference unauthorized objects.
+
+- **Example**:  
+A web app uses a cookie to identify the user:
 
 ### **4. Reference Maps**  
 The application uses client-side maps or caches that can be manipulated to reference unauthorized objects.
