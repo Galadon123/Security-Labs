@@ -1,0 +1,1 @@
+## Lab-01: DOM XSS inside Fetch API request
