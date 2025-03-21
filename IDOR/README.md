@@ -150,9 +150,9 @@ This web app is designed to demonstrate IDOR vulnerabilities. It allows users to
 2. Login as "User1" and create a message
 3. Note how the application uses numeric IDs in the URLs and for referencing resources
 
-![User Dashboard](assets/messageuser1.png)
-
 ![User Dashboard](assets/messageuser12.png)
+
+![User Dashboard](assets/messageuser1.png)
 
 
 ### **Exploiting the IDOR Vulnerability**
