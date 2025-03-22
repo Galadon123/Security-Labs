@@ -56,7 +56,7 @@ This occurs when an attacker manipulates a file path reference to access unautho
   ```
 If the server doesn’t validate the input, it may return sensitive system files (e.g., `/etc/passwd` on Linux).
 
----
+
 
 ## 2. URL Tampering
 This involves modifying URL parameters to access data or resources belonging to other users or unauthorized areas.
@@ -72,15 +72,17 @@ https://example.com/order?order_id=10101
 ```
 If access controls are weak, the attacker can view another user’s order details.
 
----
+
 
 ## 3. Modifying Header
 This occurs when an attacker alters HTTP headers (e.g., cookies or tokens) to bypass access controls and reference unauthorized objects.
 
 - **Example**:  
-A web app uses a cookie to identify the user:
+A web app uses a cookie to identify the user,
 
----
+![](assets/header.png)
+
+If the application does not properly enforce access controls, an attacker could modify this cookie value to access another user’s data. If the backend simply trusts this value and retrieves data without verification, the attacker could access another user’s private information.
 
 ## 4. Body Manipulation
 This involves tampering with the request body (e.g., JSON or form data) to reference objects the attacker shouldn’t access.
