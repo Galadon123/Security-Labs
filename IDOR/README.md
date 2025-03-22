@@ -25,10 +25,10 @@ The attacker identifies a parameter or URL that references an object, such as a 
   ```
   https://vulnerable.site/download?file=normal.pdf
   ```
-  Where `123` is the identifier for a message.
+  Where `file=normal.pdf` is the identifier for a file.
 
 ### **2. Manipulation**  
-The attacker modifies the reference to point to a different object that they should not have access to. For instance, changing the message ID from 123 to 124 to access someone else's message.
+The attacker modifies the reference to point to a different object that they should not have access to. For instance, changing the file name from normal.pdf to confidential.pdf to access someone else's file.
 
 - Example manipulated URL:  
   ```
