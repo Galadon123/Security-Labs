@@ -1,13 +1,40 @@
-# AWS Security Labs List :
+# AWS Security Labs List
 
-| **Lab Number** | **Lab Title**                                                                 |
-|----------------|-------------------------------------------------------------------------------|
-| 1              | Securing AWS IAM: Identifying and Fixing Common Misconfigurations            |
-| 2              | AWS S3 Security Pitfalls: Detecting and Resolving Bucket Misconfigurations   |
-| 3              | EBS Volume Security: Addressing AWS EC2 EBS Misconfigurations                |
-| 4              | AMI Risks Uncovered: Fixing AWS EC2 AMI Misconfigurations                    |
-| 5              | EC2 Security Deep Dive: Resolving AWS EC2 Misconfigurations                  |
-| 6              | Lambda Security Essentials: Tackling AWS Serverless Misconfigurations        |
-| 7              | RDS Security Challenges: Mitigating AWS RDS Misconfigurations                |
-| 8              | AWS Secrets Management: Securing Secrets in AWS                              |
-| 9              | AWS API Gateway Security: Protecting APIs in AWS                             |
+### **IAM Misconfiguration Labs**
+1. **Wildcard Privileges**: Overly Permissive IAM Policies  
+2. **Who Can Assume What**: Insecure Role Trust Relationships  
+3. **Cross-Account Attack Paths**: Excessive External Access  
+4. **Credential Lifecycle Vulnerabilities**: Insecure IAM User Management  
+5. **Visibility Gaps**: Detecting IAM Misconfigurations  
+
+
+### **AWS S3 Security Lab**
+1. **Public Exposure**: Identifying and Fixing Unrestricted Bucket Access  
+2. **Data Protection Failures**: Detecting Unencrypted S3 Storage  
+3. **Overly Permissive Policies**: Restricting IAM Access to S3 Resources  
+4. **Cross-Origin Vulnerabilities**: Securing S3 CORS Configurations  
+
+### **AMI Security Misconfiguration Labs**
+1. **Embedded Credentials Exposure**: Exploiting Hardcoded Secrets in AMIs  
+2. **Unintended Data Leakage**: Recovering Sensitive Information from Shared AMIs  
+3. **Privilege Escalation**: Leveraging Insecure Default Configurations in AMIs  
+
+### **EC2 Security Deep Dive**
+1. **Resolving AWS EC2 Misconfigurations**  
+
+
+### **AWS Secrets Management**
+1. **Securing Secrets in AWS**  
+
+
+### **Lambda Security Labs**
+1. **Excessive IAM Permissions**: Exploiting Overly Permissive Lambda Execution Roles  
+2. **Secret Exposure**: Uncovering Environment Variable Vulnerabilities in Lambda Functions  
+3. **Insecure Dependencies**: Detecting and Mitigating Vulnerable Packages  
+4. **Event Source Misconfigurations**: Unauthorized Invocation of Lambda Functions  
+
+### **RDS Security Labs**
+1. **Public Database Exposure**: Detecting and Securing Internet-Accessible RDS Instances  
+2. **Encryption Gaps**: Identifying Unencrypted RDS Data at Rest and in Transit  
+3. **Excessive Privileges**: Exploiting Overly Permissive RDS Access Controls  
+4. **Snapshot Vulnerabilities**: Preventing Unauthorized Access to RDS Backups  
